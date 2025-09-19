@@ -393,7 +393,6 @@ function confirmBooking(){
 
 async function showMyBookings(){
   if (!tgUser?.id){ toast('Откройте через Telegram'); returnToHero?.(); return; }
-  const bookings = await api(`/api/bookings/?telegram_id=${tgUser.id}`);
 
   $content.innerHTML = `
     <div class="cb-header">
@@ -403,35 +402,108 @@ async function showMyBookings(){
       </div>
       <div class="cb-sep"></div>
     </div>
-    <div class="cb-wrap"><div id="bkList" class="cb-list"></div></div>
+
+    <div class="cb-wrap">
+      <p class="subtitle fade-in">История ваших бронирований</p>
+
+      <div id="loadingState" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Загружаем ваши брони...</p>
+      </div>
+
+      <div id="bookingsList" class="bookings-list" style="display:none"></div>
+      <div id="emptyState" class="empty-state" style="display:none">
+        <div class="empty-icon">📅</div>
+        <div class="empty-title">Пока нет броней</div>
+        <div class="empty-subtitle">Создайте первую бронь, чтобы увидеть её здесь</div>
+      </div>
+    </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  const list = document.getElementById('bkList');
-  if (!bookings.length){ list.innerHTML = `<div class="cb-card"><div class="cb-name">У вас нет броней</div></div>`; return; }
+  let bookings = [];
+  try { bookings = await api(`/api/bookings/?telegram_id=${tgUser.id}`); } catch(_){}
 
-  const map = {pending:'Ожидание', confirmed:'Подтверждено ✅', rejected:'Отклонено ❌'};
-  bookings.forEach(b=>{
-    const card = document.createElement('div');
-    card.className = 'cb-card';
-    card.innerHTML = `
-      <div class="cb-ava">📋</div>
-      <div class="cb-info">
-        <div class="cb-name">${b.slot?.service?.name || 'Услуга'} — ${b.slot?.time ? new Date(b.slot.time).toLocaleString() : '—'}</div>
-        <div class="cb-status">${map[b.status] || ''}</div>
-      </div>
-      <button class="backbtn" data-id="${b.id}">Отменить</button>
-    `;
-    card.querySelector('button').onclick = async (e)=>{
+  const $load = document.getElementById('loadingState');
+  const $list = document.getElementById('bookingsList');
+  const $empty= document.getElementById('emptyState');
+  $load.style.display = 'none';
+
+  if (!Array.isArray(bookings) || bookings.length === 0){
+    $empty.style.display = 'block';
+    return;
+  }
+  $list.style.display = 'block';
+
+  const statusText = s => s==='pending' ? 'Активна' : s==='confirmed' ? 'Активна' : s==='rejected' ? 'Отменена' : '';
+  const serviceIcon = name => {
+    const n = name||'';
+    if (n.includes('Стриж')) return '✂️';
+    if (n.includes('Окраш')) return '🎨';
+    if (n.includes('Маник')) return '💅';
+    if (n.includes('Педик')) return '🦶';
+    if (n.includes('Массаж')) return '💆';
+    return '✨';
+  };
+  const cssStatus = (b) => {
+    if (b.status === 'rejected') return 'cancelled';
+    // считаем «завершённой», если время прошло
+    const ts = b.slot?.time ? new Date(b.slot.time).getTime() : 0;
+    return ts && ts < Date.now() ? 'completed' : 'active';
+  };
+
+  $list.innerHTML = '';
+  bookings
+    .sort((a,b)=> new Date(b.slot?.time||0) - new Date(a.slot?.time||0))
+    .forEach((b,idx)=>{
+      const svc   = b.slot?.service?.name || 'Услуга';
+      const when  = b.slot?.time ? new Date(b.slot.time) : null;
+      const timeS = when ? when.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+      const dateS = when ? when.toLocaleDateString('ru-RU', {day:'2-digit', month:'long'}) : '';
+      const master= b.slot?.service?.master?.name || '—';
+      const stCls = cssStatus(b);
+      const stTxt = statusText(b.status);
+
+      const card = document.createElement('div');
+      card.className = `booking-card ${stCls} slide-in`;
+      card.style.animationDelay = `${idx*0.06}s`;
+
+      const actionsHTML = (stCls==='active')
+        ? `<div class="booking-actions">
+             <button class="cancel-button" data-id="${b.id}">Отменить бронь</button>
+           </div>` : '';
+
+      card.innerHTML = `
+        <div class="booking-status status-${stCls}">${stTxt}</div>
+        <div class="booking-header">
+          <div class="booking-icon ${stCls}">${serviceIcon(svc)}</div>
+          <div class="booking-main-info">
+            <div class="booking-service">${svc}</div>
+            <div class="booking-time">${timeS}${dateS ? ' • '+dateS : ''}</div>
+            <div class="booking-master">Мастер: ${master}</div>
+          </div>
+        </div>
+        ${actionsHTML}
+      `;
+      $list.appendChild(card);
+    });
+
+  $list.querySelectorAll('.cancel-button').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
       e.stopPropagation();
-      if (!confirm('Отменить бронь?')) return;
+      const id = btn.dataset.id;
+      const ok = confirm('Отменить эту бронь?');
+      if (!ok) return;
       try{
-        const resp = await fetch(`/api/bookings/${b.id}/`, {method:'DELETE'});
-        if (resp.status === 204){ toast('Отменено'); showMyBookings(); }
-        else toast('Ошибка отмены');
+        const resp = await fetch(`/api/bookings/${id}/`, {method:'DELETE'});
+        if (resp.status === 204){
+          toast('Бронь отменена');
+          showMyBookings(); // перерисовать
+        } else {
+          toast('Ошибка отмены');
+        }
       }catch(_){ toast('Ошибка сети'); }
-    };
-    list.appendChild(card);
+    });
   });
 }
 
