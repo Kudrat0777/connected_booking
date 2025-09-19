@@ -82,7 +82,7 @@ function goBackOrHero(){
 
 // ===== state =====
 let masterId = null, serviceId = null, slotId = null;
-
+let masterObj = null, serviceObj = null, slotObj = null;
 // ===== screens =====
 async function showMasters(){
   $content.innerHTML = `
@@ -131,7 +131,7 @@ async function showMasters(){
       <div class="cb-dot ${m.online===false?'off':''}"></div>
       <div class="cb-arrow">→</div>
     `;
-    card.onclick = ()=>{ masterId = m.id; navigate(showServices); };
+    card.onclick = ()=>{ masterId = m.id; masterObj = m; navigate(showServices); };
     list.appendChild(card);
   });
 }
@@ -182,13 +182,14 @@ async function showServices(){
       </div>
       <div class="cb-arrow">→</div>
     `;
-    card.onclick = ()=>{ serviceId = s.id; navigate(showSlots); };
+    card.onclick = ()=>{ serviceId = s.id; serviceObj = s; navigate(showSlots); };
     list.appendChild(card);
   });
 }
 
 
 async function showSlots(){
+  // каркас
   $content.innerHTML = `
     <div class="cb-header">
       <div class="cb-header__row">
@@ -222,49 +223,64 @@ async function showSlots(){
   const now = Date.now();
   const freeOrBusy = (s) => ({
     id: s.id,
+    time: s.time, // ISO строка для подтверждения
     ts: new Date(s.time).getTime(),
     is_booked: !!s.is_booked,
     label: new Date(s.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
   });
-  const prepared = Array.isArray(slots) ? slots.map(freeOrBusy).filter(s=> s.ts >= now - 60*1000) : [];
+  const prepared = Array.isArray(slots)
+    ? slots.map(freeOrBusy).filter(s => s.ts >= now - 60*1000) // отсекаем прошлое
+    : [];
 
   if (!prepared.length){
-    root.innerHTML = `<div class="date-section slide-in"><div class="date-header"><div class="date-info"><div class="date-day">Нет свободных слотов</div></div></div></div>`;
+    root.innerHTML = `
+      <div class="date-section slide-in">
+        <div class="date-header">
+          <div class="date-info">
+            <div class="date-day">Нет свободных слотов</div>
+            <div class="date-month">Попробуйте выбрать другую услугу или день</div>
+          </div>
+        </div>
+      </div>`;
     return;
   }
 
-  // группируем по дате (YYYY-MM-DD)
   const fmtKey = (d) => {
     const dt = new Date(d);
     return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
   };
   const groups = {};
-  prepared.forEach(s=>{
+  prepared.forEach(s => {
     const key = fmtKey(s.ts);
     (groups[key] ||= []).push(s);
   });
 
-  // названия дней/месяцев
-  const dayNames = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  // словари дат
+  const dayNames   = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
   const monthNames = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-  const today = new Date(); const todayKey = fmtKey(today);
-  const tomorrow = new Date(Date.now()+86400000); const tomorrowKey = fmtKey(tomorrow);
+  const today      = new Date();     const todayKey    = fmtKey(today);
+  const tomorrow   = new Date(Date.now() + 86400000); const tomorrowKey = fmtKey(tomorrow);
 
-  // рисуем секции дат
-  Object.keys(groups).sort().forEach((key, idx)=>{
-    const dt = new Date(key+'T00:00:00');
-    const dayLabel = (key===todayKey) ? 'Сегодня' : (key===tomorrowKey ? 'Завтра' : dayNames[dt.getDay()]);
+  // индекс по id для confirm
+  const slotById = Object.fromEntries(prepared.map(s => [s.id, s]));
+
+  // рендер секций
+  Object.keys(groups).sort().forEach((key, idx) => {
+    const dt = new Date(key + 'T00:00:00');
+    const dayLabel = (key === todayKey) ? 'Сегодня' : (key === tomorrowKey ? 'Завтра' : dayNames[dt.getDay()]);
     const dd = String(dt.getDate());
     const mm = monthNames[dt.getMonth()];
+
     const section = document.createElement('div');
     section.className = 'date-section slide-in';
     section.style.animationDelay = `${idx*0.08}s`;
 
-    // слоты внутри даты
-    const times = groups[key].sort((a,b)=> a.ts-b.ts).map(s=>{
-      const cls = `time-slot${s.is_booked ? ' occupied':''}`;
-      return `<div class="${cls}" data-id="${s.id}">${s.label}</div>`;
-    }).join('');
+    const times = groups[key]
+      .sort((a,b) => a.ts - b.ts)
+      .map(s => {
+        const cls = `time-slot${s.is_booked ? ' occupied' : ''}`;
+        return `<div class="${cls}" data-id="${s.id}">${s.label}</div>`;
+      }).join('');
 
     section.innerHTML = `
       <div class="date-header">
@@ -279,13 +295,14 @@ async function showSlots(){
     root.appendChild(section);
   });
 
-  // клики по свободным слотам
-  root.querySelectorAll('.time-slot').forEach(el=>{
+  // клики по свободным
+  root.querySelectorAll('.time-slot').forEach(el => {
     if (el.classList.contains('occupied')) return;
-    el.addEventListener('click', ()=>{
+    el.addEventListener('click', () => {
       el.style.transform = 'scale(0.96)';
-      setTimeout(()=>{ el.style.transform=''; }, 120);
-      slotId = Number(el.getAttribute('data-id'));
+      setTimeout(() => { el.style.transform = ''; }, 120);
+      slotId  = Number(el.getAttribute('data-id'));
+      slotObj = slotById[slotId];        // сохраняем выбранный слот целиком
       navigate(confirmBooking);
     });
   });
@@ -293,6 +310,11 @@ async function showSlots(){
 
 
 function confirmBooking(){
+  // форматируем данные
+  const svcName   = serviceObj?.name || 'Услуга';
+  const masterName= masterObj?.name  || 'Мастер';
+  const whenStr   = slotObj?.time ? new Date(slotObj.time).toLocaleString() : `Слот #${slotId}`;
+
   $content.innerHTML = `
     <div class="cb-header">
       <div class="cb-header__row">
@@ -301,17 +323,56 @@ function confirmBooking(){
       </div>
       <div class="cb-sep"></div>
     </div>
-    <div class="cb-wrap">
-      <div class="cb-card"><div class="cb-info">
-        <div class="cb-name">Создать бронь?</div>
-        <div class="cb-status">Слот #${slotId}</div>
-      </div></div>
-      <button id="confirmBtn" class="backbtn" style="margin-top:12px">Забронировать</button>
+
+    <div class="cb-wrap confirm-wrap">
+      <div class="confirmation-question fade-in">
+        <h1 class="question-title">Создать бронь?</h1>
+        <p class="question-subtitle">Проверьте детали вашей записи</p>
+      </div>
+
+      <div class="booking-details">
+        <div class="detail-card slide-in" style="animation-delay:.1s">
+          <div class="detail-icon service-icon">✂️</div>
+          <div class="detail-info">
+            <div class="detail-label">Услуга</div>
+            <div class="detail-value" id="serviceName">${svcName}</div>
+          </div>
+        </div>
+
+        <div class="detail-card slide-in" style="animation-delay:.2s">
+          <div class="detail-icon time-icon">🕐</div>
+          <div class="detail-info">
+            <div class="detail-label">Время</div>
+            <div class="detail-value" id="bookingTime">${whenStr}</div>
+          </div>
+        </div>
+
+        <div class="detail-card slide-in" style="animation-delay:.3s">
+          <div class="detail-icon master-icon">👤</div>
+          <div class="detail-info">
+            <div class="detail-label">Мастер</div>
+            <div class="detail-value" id="masterName">${masterName}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions scale-in" style="animation-delay:.4s">
+        <button id="confirmBtn" class="action-button confirm-button">✓ Подтвердить бронь</button>
+        <button id="cancelBtn"  class="action-button cancel-button">✕ Отменить</button>
+      </div>
     </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  document.getElementById('confirmBtn').onclick = async ()=>{
+  document.getElementById('cancelBtn').onclick = ()=> {
+    // просто шаг назад (к выбору времени) или на витрину, если стек пуст
+    goBackOrHero();
+  };
+
+  document.getElementById('confirmBtn').onclick = async (e)=>{
+    e.currentTarget.style.transform = 'scale(0.96)';
+    setTimeout(()=>{ e.currentTarget.style.transform=''; }, 120);
+
     try{
       await api('/api/bookings/', {
         method:'POST',

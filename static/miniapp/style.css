@@ -100,3 +100,34 @@ body{
 
 .slide-in { animation: slideIn .4s ease-out both }
 @keyframes slideIn { from { opacity:0; transform: translateX(-20px) } to { opacity:1; transform:none } }
+
+.confirm-wrap{display:flex;flex-direction:column;gap:16px}
+.confirmation-question{text-align:center;margin-bottom:8px}
+.question-title{font-size:24px;font-weight:700;margin:0 0 6px}
+.question-subtitle{font-size:16px;color:var(--muted)}
+.booking-details{display:flex;flex-direction:column;gap:12px;margin:8px 0 16px}
+
+.detail-card{background:var(--tg-theme-secondary-bg-color,var(--panel-2));
+  border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px}
+.detail-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff}
+.service-icon{background:linear-gradient(135deg,#FF6B6B,#FF8E8E)}
+.time-icon{background:linear-gradient(135deg,#4ECDC4,#6BCCC4)}
+.master-icon{background:linear-gradient(135deg,var(--tg-theme-button-color,var(--accent)),#5BA3F5)}
+.detail-info{flex:1}
+.detail-label{font-size:13px;color:var(--muted);margin-bottom:3px}
+.detail-value{font-size:16px;font-weight:600}
+
+.actions{display:flex;flex-direction:column;gap:12px}
+.action-button{width:100%;padding:16px 24px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.confirm-button{background:#4CAF50;color:#fff;box-shadow:0 2px 8px rgba(76,175,80,.3)}
+.confirm-button:hover{background:#45A049;transform:translateY(-1px);box-shadow:0 4px 12px rgba(76,175,80,.4)}
+.cancel-button{background:transparent;color:var(--text);border:1px solid var(--line)}
+.cancel-button:hover{background:#223244;transform:translateY(-1px)}
+
+/* animations reused */
+.fade-in{animation:fadeIn .6s ease-out}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none}}
+.slide-in{animation:slideIn .5s ease-out}
+@keyframes slideIn{from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:none}}
+.scale-in{animation:scaleIn .4s ease-out}
+@keyframes scaleIn{from{opacity:0;transform:scale(.9)} to{opacity:1;transform:scale(1)}}
