@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Панель мастера</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=6" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div id="profile" style="text-align:center;margin-bottom:16px;"></div>
+    <h1>Панель мастера</h1>
+
+    <div class="backbar">
+      <button id="backBtn" class="backbtn" style="display:none">← Назад</button>
+    </div>
+
+    <div id="content">
+      <button id="showBookingsBtn" class="tg-btn">Показать записи</button>
+    </div>
+  </div>
+
+  <div id="loader" class="loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="{% static 'miniapp/master.js' %}?v=12"></script>
+</body>
+</html>
