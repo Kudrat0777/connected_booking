@@ -77,3 +77,6 @@ body{
 
 /* legacy tiny buttons reused inside cards */
 .backbtn{background:#223244;color:var(--text);border:0;border-radius:12px;padding:8px 10px;cursor:pointer}
+
+.slide-in { animation: slideIn .4s ease-out both }
+@keyframes slideIn { from { opacity:0; transform: translateX(-20px) } to { opacity:1; transform:none } }

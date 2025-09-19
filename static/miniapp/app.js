@@ -137,7 +137,6 @@ async function showMasters(){
 }
 
 async function showServices(){
-  const services = await api(`/api/services/?master=${masterId}`);
   $content.innerHTML = `
     <div class="cb-header">
       <div class="cb-header__row">
@@ -146,25 +145,48 @@ async function showServices(){
       </div>
       <div class="cb-sep"></div>
     </div>
-    <div class="cb-wrap"><div id="svcList" class="cb-list"></div></div>
+
+    <div class="cb-wrap">
+      <p class="cb-sub">Выберите услугу для записи</p>
+
+      <div id="svcLoading" class="cb-loading">
+        <div class="cb-spin"></div>
+        <div>Загружаем список услуг…</div>
+      </div>
+
+      <div id="svcList" class="cb-list" style="display:none"></div>
+    </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  const list = document.getElementById('svcList');
-  if (!services.length){ list.innerHTML = `<div class="cb-card"><div class="cb-name">Услуг нет</div></div>`; return; }
+  let services = [];
+  try { services = await api(`/api/services/?master=${masterId}`); } catch(_){}
 
-  services.forEach(s=>{
+  const loading = document.getElementById('svcLoading');
+  const list    = document.getElementById('svcList');
+  loading.style.display = 'none';
+  list.style.display    = 'flex';
+
+  if (!services.length){
+    list.innerHTML = `<div class="cb-card"><div class="cb-name">Услуг нет</div></div>`;
+    return;
+  }
+
+  services.forEach((s, i)=>{
     const card = document.createElement('div');
-    card.className = 'cb-card';
+    card.className = 'cb-card slide-in';
+    card.style.animationDelay = `${i*0.05}s`;
     card.innerHTML = `
-      <div class="cb-ava">S</div>
-      <div class="cb-info"><div class="cb-name">${s.name}</div></div>
+      <div class="cb-info">
+        <div class="cb-name">${s.name}</div>
+      </div>
       <div class="cb-arrow">→</div>
     `;
     card.onclick = ()=>{ serviceId = s.id; navigate(showSlots); };
     list.appendChild(card);
   });
 }
+
 
 async function showSlots(){
   const slots = await api(`/api/slots/?service=${serviceId}`);
