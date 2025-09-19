@@ -78,5 +78,25 @@ body{
 /* legacy tiny buttons reused inside cards */
 .backbtn{background:#223244;color:var(--text);border:0;border-radius:12px;padding:8px 10px;cursor:pointer}
 
+/* календарный список дат/времени (канва-стиль) */
+.dates-list{display:flex;flex-direction:column;gap:20px}
+.date-section{background:var(--tg-theme-secondary-bg-color,var(--panel-2));border-radius:16px;padding:20px;border:1px solid var(--line)}
+.date-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.date-number{width:48px;height:48px;background:var(--tg-theme-button-color,var(--accent));color:#fff;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+.date-info{flex:1}
+.date-day{font-size:16px;font-weight:600}
+.date-month{font-size:14px;color:var(--muted)}
+.time-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px}
+.time-slot{background:var(--tg-theme-bg-color,#0f1520);border:1px solid var(--line);border-radius:8px;padding:12px 8px;
+  text-align:center;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.time-slot:hover{background:var(--tg-theme-button-color,var(--accent));color:var(--tg-theme-button-text-color,#fff);border-color:var(--tg-theme-button-color,var(--accent));transform:translateY(-1px)}
+.time-slot.occupied{background:#0f1520; color:var(--muted); border-color:#223244; cursor:not-allowed; opacity:.6}
+.time-slot.occupied:hover{transform:none}
+
+/* плавное появление секций */
+.slide-in{animation:slideIn .4s ease-out both}
+@keyframes slideIn{from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:none}}
+
 .slide-in { animation: slideIn .4s ease-out both }
 @keyframes slideIn { from { opacity:0; transform: translateX(-20px) } to { opacity:1; transform:none } }

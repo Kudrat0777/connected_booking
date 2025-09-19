@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Connected Booking</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=19" />
+  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=20" />
 </head>
 <body>
   <!-- HERO (приветствие) -->
@@ -21,15 +21,13 @@
     <div class="footer">Управляйте своими записями легко и удобно</div>
   </div>
 
-  <!-- APP-SHELL (сюда рендерятся экраны) -->
   <div id="app-shell" class="app-shell">
     <div id="content"></div>
   </div>
 
-  <!-- служебные элементы -->
   <div id="loader" class="loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
   <div id="toast" class="toast"></div>
 
-  <script src="{% static 'miniapp/app.js' %}?v=19"></script>
+  <script src="{% static 'miniapp/app.js' %}?v=20"></script>
 </body>
 </html>

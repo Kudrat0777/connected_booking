@@ -189,7 +189,6 @@ async function showServices(){
 
 
 async function showSlots(){
-  const slots = await api(`/api/slots/?service=${serviceId}`);
   $content.innerHTML = `
     <div class="cb-header">
       <div class="cb-header__row">
@@ -198,26 +197,100 @@ async function showSlots(){
       </div>
       <div class="cb-sep"></div>
     </div>
-    <div class="cb-wrap"><div id="slotList" class="cb-list"></div></div>
+
+    <div class="cb-wrap">
+      <p class="cb-sub">Выберите удобное время для записи</p>
+
+      <div id="slotLoading" class="cb-loading">
+        <div class="cb-spin"></div>
+        <div>Загружаем доступное время…</div>
+      </div>
+
+      <div id="datesList" class="dates-list" style="display:none"></div>
+    </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  const list = document.getElementById('slotList');
-  const free = Array.isArray(slots) ? slots.filter(s=> !s.is_booked) : [];
-  if (!free.length){ list.innerHTML = `<div class="cb-card"><div class="cb-name">Свободных слотов нет</div></div>`; return; }
+  let slots = [];
+  try { slots = await api(`/api/slots/?service=${serviceId}`); } catch(_) {}
 
-  free.forEach(x=>{
-    const card = document.createElement('div');
-    card.className = 'cb-card';
-    card.innerHTML = `
-      <div class="cb-ava">⏰</div>
-      <div class="cb-info"><div class="cb-name">${new Date(x.time).toLocaleString()}</div></div>
-      <div class="cb-arrow">→</div>
+  const loading = document.getElementById('slotLoading');
+  const root    = document.getElementById('datesList');
+  loading.style.display = 'none';
+  root.style.display    = 'flex';
+
+  const now = Date.now();
+  const freeOrBusy = (s) => ({
+    id: s.id,
+    ts: new Date(s.time).getTime(),
+    is_booked: !!s.is_booked,
+    label: new Date(s.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+  });
+  const prepared = Array.isArray(slots) ? slots.map(freeOrBusy).filter(s=> s.ts >= now - 60*1000) : [];
+
+  if (!prepared.length){
+    root.innerHTML = `<div class="date-section slide-in"><div class="date-header"><div class="date-info"><div class="date-day">Нет свободных слотов</div></div></div></div>`;
+    return;
+  }
+
+  // группируем по дате (YYYY-MM-DD)
+  const fmtKey = (d) => {
+    const dt = new Date(d);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  };
+  const groups = {};
+  prepared.forEach(s=>{
+    const key = fmtKey(s.ts);
+    (groups[key] ||= []).push(s);
+  });
+
+  // названия дней/месяцев
+  const dayNames = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const monthNames = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const today = new Date(); const todayKey = fmtKey(today);
+  const tomorrow = new Date(Date.now()+86400000); const tomorrowKey = fmtKey(tomorrow);
+
+  // рисуем секции дат
+  Object.keys(groups).sort().forEach((key, idx)=>{
+    const dt = new Date(key+'T00:00:00');
+    const dayLabel = (key===todayKey) ? 'Сегодня' : (key===tomorrowKey ? 'Завтра' : dayNames[dt.getDay()]);
+    const dd = String(dt.getDate());
+    const mm = monthNames[dt.getMonth()];
+    const section = document.createElement('div');
+    section.className = 'date-section slide-in';
+    section.style.animationDelay = `${idx*0.08}s`;
+
+    // слоты внутри даты
+    const times = groups[key].sort((a,b)=> a.ts-b.ts).map(s=>{
+      const cls = `time-slot${s.is_booked ? ' occupied':''}`;
+      return `<div class="${cls}" data-id="${s.id}">${s.label}</div>`;
+    }).join('');
+
+    section.innerHTML = `
+      <div class="date-header">
+        <div class="date-number">${dd}</div>
+        <div class="date-info">
+          <div class="date-day">${dayLabel}</div>
+          <div class="date-month">${mm}</div>
+        </div>
+      </div>
+      <div class="time-slots">${times}</div>
     `;
-    card.onclick = ()=>{ slotId = x.id; navigate(confirmBooking); };
-    list.appendChild(card);
+    root.appendChild(section);
+  });
+
+  // клики по свободным слотам
+  root.querySelectorAll('.time-slot').forEach(el=>{
+    if (el.classList.contains('occupied')) return;
+    el.addEventListener('click', ()=>{
+      el.style.transform = 'scale(0.96)';
+      setTimeout(()=>{ el.style.transform=''; }, 120);
+      slotId = Number(el.getAttribute('data-id'));
+      navigate(confirmBooking);
+    });
   });
 }
+
 
 function confirmBooking(){
   $content.innerHTML = `
