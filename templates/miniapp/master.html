@@ -3,28 +3,133 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Панель мастера</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=6" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=13" />
+  <style>
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui}
+    .bg-gradient{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh}
+
+    .container{max-width:400px;margin:0 auto;padding:20px;min-height:100vh;display:flex;flex-direction:column}
+    .header{ text-align:center; margin-bottom:32px; padding-top:12px }
+    .master-logo{width:100px;height:100px;border-radius:50%;
+      background:linear-gradient(135deg,#FF6B6B,#FF8E8E);display:flex;align-items:center;justify-content:center;
+      font-size:40px;color:#fff;margin:0 auto 16px;box-shadow:0 8px 32px rgba(255,107,107,.3);border:4px solid rgba(255,255,255,.2)}
+    .welcome-text{color:#fff;font-size:24px;font-weight:700;margin:0 0 4px}
+    .master-name{color:rgba(255,255,255,.85);font-size:16px}
+
+    .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-content:start}
+    .menu-button{background:rgba(255,255,255,.95);border:1px solid rgba(255,255,255,.2);border-radius:20px;
+      padding:24px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;
+      text-decoration:none;color:#222;box-shadow:0 4px 20px rgba(0,0,0,.08);backdrop-filter:blur(8px);transition:.25s}
+    .menu-button:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(0,0,0,.14);background:#fff}
+    .menu-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
+    .appointments-icon{background:linear-gradient(135deg,#4ECDC4,#44A08D)}
+    .profile-icon{background:linear-gradient(135deg,#667eea,#764ba2)}
+    .services-icon{background:linear-gradient(135deg,#f093fb,#f5576c)}
+    .calendar-icon{background:linear-gradient(135deg,#ffecd2,#fcb69f);color:#8B4513}
+    .menu-title{font-weight:700}
+    .menu-subtitle{font-size:12px;color:#666;text-align:center}
+
+    .stats{margin-top:22px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.25);
+      border-radius:16px;padding:18px;backdrop-filter:blur(8px);color:#fff}
+    .stats h3{margin:0 0 12px;text-align:center;font-size:16px}
+    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center}
+    .stat-num{font-size:22px;font-weight:800}
+    .stat-label{font-size:12px;color:rgba(255,255,255,.82)}
+
+    #appArea{display:none;max-width:640px;margin:0 auto;padding:12px 14px 22px}
+    #content{margin-top:6px}
+
+    .cb-header{position:sticky;top:0;z-index:5;background:transparent}
+    .cb-header__row{display:flex;align-items:center;gap:10px}
+    .cb-back{border:0;background:rgba(0,0,0,.35);color:#fff;border-radius:10px;padding:10px 12px;font-size:16px;cursor:pointer}
+    .cb-title{color:#fff;font-size:18px;font-weight:800;margin:0}
+    .cb-sep{height:1px;background:rgba(255,255,255,.25);margin:10px 0}
+
+    .cb-wrap{padding:6px 0}
+    .cb-sub{color:#e7eef7;opacity:.9;margin:2px 0 10px}
+    .cb-loading{opacity:.9;text-align:center;padding:18px;color:#e7eef7}
+    .cb-spin{width:26px;height:26px;border-radius:50%;margin:0 auto 8px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .booking-item{background:#121a24;border:1px solid #223244;border-radius:14px;padding:12px;color:#e7eef7}
+    .input{background:#0f1720;border:1px solid #223244;color:#e7eef7;border-radius:10px;padding:10px}
+
+    .date-section{background:#0f1720;border:1px solid #223244;border-radius:16px;padding:14px;margin-bottom:12px;color:#e7eef7}
+    .date-header{display:flex;align-items:center;gap:10px;border-bottom:1px solid #223244;padding-bottom:8px;margin-bottom:10px}
+    .date-number{width:42px;height:42px;border-radius:10px;background:#2f7de7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .date-info .date-month{opacity:.85;font-size:13px}
+    .time-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px}
+    .time-slot{background:#0b1220;border:1px solid #223244;border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer}
+    .time-slot:hover{transform:translateY(-1px);border-color:#2f7de7}
+    .time-slot.occupied{opacity:.45;cursor:not-allowed;border-style:dashed}
+  </style>
 </head>
-<body>
-  <div class="container">
-    <div id="profile" style="text-align:center;margin-bottom:16px;"></div>
-    <h1>Панель мастера</h1>
+<body class="bg-gradient">
 
-    <div class="backbar">
-      <button id="backBtn" class="backbtn" style="display:none">← Назад</button>
+  <section id="homePanel" class="container">
+    <div class="header">
+      <div class="master-logo" id="masterLogo">👩‍💼</div>
+      <h1 class="welcome-text">Добро пожаловать!</h1>
+      <p class="master-name" id="masterName">—</p>
     </div>
 
-    <div id="content">
-      <button id="showBookingsBtn" class="tg-btn">Показать записи</button>
+    <div class="menu-grid">
+      <button class="menu-button" data-act="appointments">
+        <div class="menu-icon appointments-icon">📋</div>
+        <div class="menu-title">Показать записи</div>
+        <div class="menu-subtitle">Просмотр всех записей</div>
+      </button>
+
+      <button class="menu-button" data-act="profile">
+        <div class="menu-icon profile-icon">👤</div>
+        <div class="menu-title">Мой профиль</div>
+        <div class="menu-subtitle">Настройки профиля</div>
+      </button>
+
+      <button class="menu-button" data-act="services">
+        <div class="menu-icon services-icon">✨</div>
+        <div class="menu-title">Услуги и слоты</div>
+        <div class="menu-subtitle">Управление услугами</div>
+      </button>
+
+      <button class="menu-button" data-act="calendar">
+        <div class="menu-icon calendar-icon">📅</div>
+        <div class="menu-title">Календарь</div>
+        <div class="menu-subtitle">Расписание работы</div>
+      </button>
     </div>
-  </div>
+
+    <div class="stats" id="todayStats">
+      <h3>Сегодня</h3>
+      <div class="stats-grid">
+        <div>
+          <div class="stat-num" id="statTotal">0</div>
+          <div class="stat-label">Записей</div>
+        </div>
+        <div>
+          <div class="stat-num" id="statPending">0</div>
+          <div class="stat-label">Ожидание</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="noTid" class="booking-item" style="margin-top:12px;display:none">
+      <b>Нет Telegram ID</b><br/>
+      Откройте панель через кнопку в боте.<br/>
+      Для отладки можно добавить <code>?tid=ВАШ_ID</code> к URL.
+    </div>
+  </section>
+
+  <section id="appArea">
+    <div id="content"></div>
+  </section>
 
   <div id="loader" class="loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
   <div id="toast" class="toast"></div>
 
-  <script src="{% static 'miniapp/master.js' %}?v=12"></script>
+  <script src="{% static 'miniapp/master.js' %}?v=13"></script>
 </body>
 </html>
