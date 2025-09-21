@@ -157,6 +157,8 @@ async function showBookings(period='today', status=''){
           <button class="backbtn" data-status="pending">Ожидание</button>
           <button class="backbtn" data-status="confirmed">Подтверждено</button>
           <button class="backbtn" data-status="rejected">Отклонено</button>
+
+          <button id="addBookingBtn" class="tg-btn" style="margin-left:auto">+ Новая запись</button>
         </div>
       </div>
 
@@ -169,6 +171,7 @@ async function showBookings(period='today', status=''){
       </div>
     </div>`;
   mountHeaderBack();
+  $id('addBookingBtn').onclick = ()=> navigate(showManualBooking);
 
   const statusText = (st)=> st==='pending'?'Ожидает':(st==='confirmed'?'Подтверждено':'Отклонено');
   const initials = (name)=> String(name||'').split(' ').map(n=>n[0]||'').join('').toUpperCase().slice(0,2) || 'CL';
@@ -270,6 +273,143 @@ async function showBookings(period='today', status=''){
   });
 }
 
+async function showManualBooking(){
+  if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
+
+  // 1) Подтянем услуги мастера
+  let services = [];
+  try { services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`); } catch(_){ services = []; }
+
+  $content.innerHTML = `
+    ${headerHTML('Новая запись')}
+    <div class="cb-wrap">
+      <div class="booking-item">
+        <div style="display:grid;gap:10px">
+          <div>
+            <label>Имя клиента</label>
+            <input id="nbFirst" class="input" type="text" placeholder="Иван">
+          </div>
+          <div>
+            <label>Фамилия клиента</label>
+            <input id="nbLast" class="input" type="text" placeholder="Иванов">
+          </div>
+          <div>
+            <label>Категория (услуга)</label>
+            <select id="nbService" class="input">
+              ${services.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+            </select>
+          </div>
+
+          <div id="nbSlotWrap">
+            <label>Свободный слот</label>
+            <select id="nbSlot" class="input"><option value="">Загрузка…</option></select>
+            <div id="nbNoSlots" style="display:none;opacity:.8;margin-top:6px">
+              Нет свободных слотов. Можно <button id="nbAddOneBtn" class="backbtn">добавить слот</button>.
+            </div>
+          </div>
+
+          <div id="nbAddOnePanel" class="booking-item" style="display:none">
+            <b>Добавить одиночный слот</b>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+              <input id="nbOneDT" class="input" type="datetime-local">
+              <button id="nbOneAdd" class="tg-btn">Добавить слот</button>
+              <button id="nbOneCancel" class="backbtn">Отмена</button>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <button id="nbCreate" class="tg-btn">Создать запись</button>
+            <button id="nbCancel" class="backbtn">Отмена</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  mountHeaderBack();
+
+  const $svc = $id('nbService');
+  const $slot = $id('nbSlot');
+  const $no  = $id('nbNoSlots');
+  const $addPanel = $id('nbAddOnePanel');
+
+  // Загрузка свободных слотов по услуге
+  async function loadFreeSlots(serviceId){
+    $slot.innerHTML = `<option value="">Загрузка…</option>`;
+    $no.style.display = 'none';
+
+    let slots = [];
+    try { slots = await api(`/api/slots/?service=${serviceId}`); } catch(_){ slots = []; }
+    const free = (slots||[]).filter(s=>!s.is_booked);
+
+    if (!free.length){
+      $slot.innerHTML = `<option value="">Нет свободных слотов</option>`;
+      $no.style.display = 'block';
+    } else {
+      $slot.innerHTML = free
+        .sort((a,b)=> new Date(a.time)-new Date(b.time))
+        .map(s=>`<option value="${s.id}">${new Date(s.time).toLocaleString()}</option>`)
+        .join('');
+    }
+  }
+
+  // первичная загрузка
+  if (services.length){
+    loadFreeSlots(services[0].id);
+  }
+
+  // при смене услуги — заново подтягиваем слоты
+  $svc.onchange = ()=> loadFreeSlots(Number($svc.value));
+
+  // показать/скрыть панель быстрого добавления одиночного слота
+  $id('nbAddOneBtn')?.addEventListener('click', ()=> { $addPanel.style.display='block'; });
+  $id('nbOneCancel')?.addEventListener('click', ()=> { $addPanel.style.display='none'; });
+
+  // добавить один слот
+  $id('nbOneAdd').onclick = async ()=>{
+    const dt = $id('nbOneDT').value;
+    const sid = Number($svc.value);
+    if (!sid){ toast('Выберите услугу'); return; }
+    if (!dt){ toast('Укажите дату и время'); return; }
+
+    try{
+      await api('/api/slots/', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ service: sid, time: new Date(dt).toISOString() })
+      });
+      toast('Слот добавлен');
+      $addPanel.style.display='none';
+      await loadFreeSlots(sid); // обновим список слотов
+    }catch(_){ toast('Ошибка добавления слота'); }
+  };
+
+  // создать запись
+  $id('nbCreate').onclick = async ()=>{
+    const first = $id('nbFirst').value.trim();
+    const last  = $id('nbLast').value.trim();
+    const name  = (first || last) ? `${first} ${last}`.trim() : '';
+    const slotId= Number($slot.value);
+
+    if (!name){ toast('Введите имя клиента'); return; }
+    if (!slotId){ toast('Выберите слот'); return; }
+
+    try{
+      await api('/api/bookings/', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          slot_id: slotId,
+          name: name,
+          // telegram_id и прочее не передаём — это «ручная» запись
+        })
+      });
+      toast('Запись создана');
+      navigate(()=> showBookings('today','')); // вернёмся к списку
+    }catch(e){
+      toast('Не удалось создать запись');
+    }
+  };
+
+  $id('nbCancel').onclick = goBackOrHome;
+}
 async function showProfile(){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
   let v = {};
