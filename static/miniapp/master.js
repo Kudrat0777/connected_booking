@@ -316,43 +316,250 @@ async function showProfile(){
   };
 }
 
+// ==== Мои услуги (с модалками создания услуги и добавления слотов) ====
 async function showServicesManager(){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
-  const services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`);
 
+  // тянем услуги мастера
+  let services = [];
+  try{ services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`); }
+  catch(_){ services = []; }
+
+  // UI
   $content.innerHTML = `
     ${headerHTML('Мои услуги')}
     <div class="cb-wrap">
-      <div class="booking-item">
-        <label>Новая услуга</label>
-        <input id="svcName" class="input" placeholder="Напр. Стрижка">
-        <button id="svcCreate" class="tg-btn" style="margin-top:8px">Создать</button>
+
+      <div class="add-service-card">
+        <h3 class="add-service-title">Добавить новую услугу</h3>
+        <button class="add-service-button" id="btnOpenAddService">+ Создать услугу</button>
       </div>
-      <div id="svcList" style="margin-top:10px"></div>
-    </div>`;
+
+      <div id="svcList" class="services-list"></div>
+      <div id="svcEmpty" class="booking-item" style="display:none;text-align:center;opacity:.8">
+        <div style="font-size:36px">✨</div>
+        <div style="font-weight:800;margin-top:4px">Пока нет услуг</div>
+        <div style="font-size:13px;opacity:.85">Добавьте первую услугу, чтобы начать принимать записи</div>
+      </div>
+    </div>
+
+    <!-- Модалка: новая услуга -->
+    <div id="addServiceModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-title">Новая услуга</div>
+        <div class="form-group">
+          <label class="form-label">Название услуги</label>
+          <input id="mSvcName" class="form-input" placeholder="Например: Стрижка мужская">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Цена (₽)</label>
+          <input id="mSvcPrice" class="form-input" type="number" placeholder="1500">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Длительность (мин)</label>
+          <input id="mSvcDuration" class="form-input" type="number" placeholder="60">
+        </div>
+        <div class="modal-actions">
+          <button class="modal-button secondary-button" id="mSvcCancel">Отмена</button>
+          <button class="modal-button primary-button" id="mSvcCreate">Добавить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модалка: добавить слот -->
+    <div id="addSlotModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-title">Добавить слот</div>
+        <div class="form-group">
+          <label class="form-label">Время начала</label>
+          <input id="mSlotTime" class="form-input" type="time" value="10:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Дни недели</label>
+          <select id="mSlotDays" class="form-input">
+            <option value="">Выберите дни</option>
+            <option value="weekdays">Будни (Пн–Пт)</option>
+            <option value="weekends">Выходные (Сб–Вс)</option>
+            <option value="all">Все дни</option>
+            <option value="monday">Понедельник</option>
+            <option value="tuesday">Вторник</option>
+            <option value="wednesday">Среда</option>
+            <option value="thursday">Четверг</option>
+            <option value="friday">Пятница</option>
+            <option value="saturday">Суббота</option>
+            <option value="sunday">Воскресенье</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="modal-button secondary-button" id="mSlotCancel">Отмена</button>
+          <button class="modal-button primary-button" id="mSlotAdd">Добавить</button>
+        </div>
+      </div>
+    </div>
+  `;
   mountHeaderBack();
 
-  $id('svcCreate').onclick = async ()=>{
-    const name = $id('svcName').value.trim();
-    if (!name) return toast('Название обязательно');
-    await api('/api/services/create_by_master/', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ telegram_id: CURRENT_TG_ID, name })
-    });
-    toast('Услуга добавлена'); showServicesManager();
+  const svcList  = document.getElementById('svcList');
+  const svcEmpty = document.getElementById('svcEmpty');
+  const addServiceModal = document.getElementById('addServiceModal');
+  const addSlotModal    = document.getElementById('addSlotModal');
+
+  let currentServiceId = null;
+
+  const getServiceIcon = (name='')=>{
+    if (name.includes('Стрижка')) return '✂️';
+    if (name.includes('Окраш'))  return '🎨';
+    if (name.includes('Маник'))  return '💅';
+    if (name.includes('Педик'))  return '🦶';
+    if (name.includes('Массаж')) return '💆';
+    return '✨';
   };
 
-  const list = $id('svcList');
-  if (!services.length){ list.innerHTML = '<div class="booking-item">Пока нет услуг</div>'; return; }
-  list.innerHTML = '';
-  services.forEach(s=>{
-    const el = document.createElement('div'); el.className='booking-item';
-    el.innerHTML = `<b>${esc(s.name)}</b><br><button class="backbtn" data-id="${s.id}">Слоты</button>`;
-    list.appendChild(el);
+  const render = ()=>{
+    svcList.innerHTML = '';
+    if (!services?.length){
+      svcEmpty.style.display = 'block';
+      return;
+    }
+    svcEmpty.style.display = 'none';
+
+    services.forEach((s, idx)=>{
+      const slotsHTML = Array.isArray(s.slots) && s.slots.length
+        ? s.slots.map(sl=>`<span class="slot-tag">${esc(sl)}</span>`).join('')
+        : `<div class="no-slots">Слоты не добавлены</div>`;
+
+      const card = document.createElement('div');
+      card.className = 'service-card';
+      card.style.animationDelay = `${idx*0.05}s`;
+      card.innerHTML = `
+        <div class="service-menu">
+          <button class="menu-button" data-del="${s.id}" title="Удалить">⋮</button>
+        </div>
+
+        <div class="service-header">
+          <div class="service-icon">${getServiceIcon(s.name)}</div>
+          <div class="service-info">
+            <div class="service-name">${esc(s.name)}</div>
+            <div class="service-details">
+              <span>${s.price ? esc(s.price)+' ₽' : '— ₽'}</span>
+              <span>${s.duration ? esc(s.duration)+' мин' : '— мин'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="service-actions">
+          <div class="slots-title">Доступные слоты:</div>
+          <div class="slots-list">${slotsHTML}</div>
+          <button class="add-slot-button" data-addslot="${s.id}">+ Добавить слот</button>
+        </div>
+      `;
+      svcList.appendChild(card);
+    });
+
+    // удаление услуги (если у тебя есть эндпоинт DELETE /api/services/{id}/)
+    svcList.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = Number(btn.dataset.del);
+        const svc = services.find(x=>x.id===id);
+        if (!svc) return;
+        if (!confirm(`Удалить услугу "${svc.name}"?`)) return;
+        try{
+          await api(`/api/services/${id}/`, { method:'DELETE' });
+        }catch(_){ /* если не поддерживается — молчим */ }
+        // локально уберём
+        services = services.filter(x=>x.id!==id);
+        render();
+        toast('Услуга удалена');
+      };
+    });
+
+    // открыть модалку добавления слота
+    svcList.querySelectorAll('[data-addslot]').forEach(btn=>{
+      btn.onclick = ()=>{
+        currentServiceId = Number(btn.dataset.addslot);
+        openModal(addSlotModal);
+      };
+    });
+  };
+
+  render();
+
+  // ====== модалки ======
+  function openModal(m){ m?.classList.add('active'); }
+  function closeModal(m){ m?.classList.remove('active'); }
+
+  document.getElementById('btnOpenAddService').onclick = ()=> openModal(addServiceModal);
+  document.getElementById('mSvcCancel').onclick = ()=> closeModal(addServiceModal);
+  document.getElementById('mSlotCancel').onclick = ()=> closeModal(addSlotModal);
+
+  // клик вне контента — закрыть
+  [addServiceModal, addSlotModal].forEach(m=>{
+    m.addEventListener('click', (e)=>{ if(e.target===m) closeModal(m); });
   });
-  list.querySelectorAll('[data-id]').forEach(b=>{
-    b.onclick = ()=> navigate(()=>showSlotsManager(Number(b.dataset.id)));
-  });
+
+  // создать услугу
+  document.getElementById('mSvcCreate').onclick = async ()=>{
+    const name = document.getElementById('mSvcName').value.trim();
+    const price = Number(document.getElementById('mSvcPrice').value || 0);
+    const duration = Number(document.getElementById('mSvcDuration').value || 0);
+    if (!name) return toast('Название обязательно');
+
+    // твой бек точно принимает name + telegram_id; price/duration можно передать — если лишнее, он проигнорирует
+    await api('/api/services/create_by_master/', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ telegram_id: CURRENT_TG_ID, name, price, duration })
+    });
+    toast('Услуга добавлена');
+    closeModal(addServiceModal);
+
+    // перезагрузим список
+    try{ services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`); } catch(_){}
+    render();
+  };
+
+  // добавить слоты
+  document.getElementById('mSlotAdd').onclick = async ()=>{
+    if (!currentServiceId) return;
+    const time = document.getElementById('mSlotTime').value;
+    const days = document.getElementById('mSlotDays').value;
+    if (!time || !days) return toast('Заполните время и дни');
+
+    // сопоставим выбранные дни к массиву weekday (0=Пн ... 6=Вс) для bulk_generate
+    const mapDays = {
+      weekdays:[0,1,2,3,4],
+      weekends:[5,6],
+      all:[0,1,2,3,4,5,6],
+      monday:[0], tuesday:[1], wednesday:[2], thursday:[3],
+      friday:[4], saturday:[5], sunday:[6],
+    };
+    const weekdays = mapDays[days] || [];
+
+    // Сгенерируем слоты на ближайшие 30 дней (можно поменять на другой период)
+    const start = new Date();                             // сегодня
+    const end   = new Date(Date.now() + 30*86400000);     // +30 дней
+    const startISO = start.toISOString().slice(0,10);
+    const endISO   = end.toISOString().slice(0,10);
+
+    try{
+      await api('/api/slots/bulk_generate/', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          service: currentServiceId,
+          start_date: startISO,
+          end_date: endISO,
+          times: [time],          // один тайм из модалки
+          weekdays                // массив дней недели
+        })
+      });
+      toast('Слоты созданы');
+    }catch(_){ toast('Ошибка создания слотов'); }
+
+    closeModal(addSlotModal);
+
+    // подтянем обновлённые услуги (чтобы перечень «слотов» в карточке тоже обновился)
+    try{ services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`); } catch(_){}
+    render();
+  };
 }
 
 async function showSlotsManager(serviceId){
