@@ -8,28 +8,27 @@ const $appArea = $id('appArea');
 function showLoading(on=true){ if($loader) $loader.style.display = on ? 'flex' : 'none'; }
 function toast(text, ms=1800){ if(!$toast) return; $toast.textContent = text; $toast.style.display='block'; setTimeout(()=>{$toast.style.display='none'}, ms); }
 async function api(url, init){
-  try {
+  try{
     showLoading(true);
     const r = await fetch(url, init);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.json().catch(()=> ({}));
-  } catch(e) { console.error(e); toast('Ошибка сети'); throw e; }
-  finally { showLoading(false); }
+  }catch(e){ console.error(e); toast('Ошибка сети'); throw e; }
+  finally{ showLoading(false); }
 }
-function esc(s=''){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;' }[m])); }
+function esc(s=''){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&gt;','>':'&gt;','"':'&quot;', "'":'&#39;' }[m]) ); }
 
 let tgUser = null;
 try{
   const TG = window.Telegram?.WebApp;
   if (TG){ TG.ready?.(); TG.expand?.(); tgUser = TG.initDataUnsafe?.user || null; }
-} catch(_) {}
+}catch{}
 
 function rawIdFromInitData(){
   try{
     const raw = window.Telegram?.WebApp?.initData || '';
     const m = raw.match(/user=([^&]+)/);
-    if (!m) return null;
-    return JSON.parse(decodeURIComponent(m[1]))?.id || null;
+    return m ? (JSON.parse(decodeURIComponent(m[1]))?.id || null) : null;
   }catch{ return null; }
 }
 const urlTid = new URLSearchParams(location.search).get('tid');
@@ -47,7 +46,7 @@ function navigate(viewFn){
 function goBackOrHome(){
   if (ViewStack.length > 1){
     ViewStack.pop();
-    const top = ViewStack[ViewStack.length-1];
+    const top = ViewStack[ViewStack.length - 1];
     top && top();
   } else {
     $appArea.style.display = 'none';
@@ -55,10 +54,25 @@ function goBackOrHome(){
   }
 }
 
+function headerHTML(title){
+  return `
+    <div class="cb-header">
+      <div class="cb-header__row">
+        <button class="cb-back" id="cbBack">←</button>
+        <h2 class="cb-title">${esc(title)}</h2>
+      </div>
+      <div class="cb-sep"></div>
+    </div>`;
+}
+function mountHeaderBack(){ const b = $id('cbBack'); if (b) b.onclick = goBackOrHome; }
+
 async function initHome(){
   const logo = $id('masterLogo');
   const nameEl = $id('masterName');
-  if (tgUser?.first_name){ nameEl.textContent = `${tgUser.first_name} ${tgUser.last_name||''}`.trim(); logo.textContent = (tgUser.first_name[0]||'M').toUpperCase(); }
+  if (tgUser?.first_name){
+    nameEl.textContent = `${tgUser.first_name} ${tgUser.last_name||''}`.trim();
+    logo.textContent = (tgUser.first_name[0] || 'M').toUpperCase();
+  }
 
   if (!CURRENT_TG_ID){
     $id('noTid').style.display = 'block';
@@ -72,8 +86,7 @@ async function initHome(){
       nameEl.textContent = r.master.name || nameEl.textContent;
       logo.textContent = (r.master.name||'M').trim().charAt(0).toUpperCase();
     } else {
-      // быстрый авто-рег по имени из TG (если не хотим формы)
-      const probableName = (tgUser ? `${tgUser.first_name||''} ${tgUser.last_name||''}`.trim() : '').trim();
+      const probableName = tgUser ? `${tgUser.first_name||''} ${tgUser.last_name||''}`.trim() : '';
       if (probableName){
         await api('/api/masters/register/', {
           method:'POST', headers:{'Content-Type':'application/json'},
@@ -81,7 +94,7 @@ async function initHome(){
         });
       }
     }
-  }catch(_){ /* no-op */ }
+  }catch(_){}
 
   try{
     const q = new URLSearchParams({ telegram_id: CURRENT_TG_ID, period: 'today' });
@@ -95,30 +108,18 @@ async function initHome(){
 }
 
 function bindHomeButtons(){
-  const bind = (sel, fn) => {
-    document.querySelectorAll(sel).forEach(b=> b.addEventListener('click', ()=>{
-      b.style.transform = 'scale(0.97)'; setTimeout(()=> b.style.transform='', 120);
+  const tap = (btn, fn)=>{
+    btn.addEventListener('click', ()=>{
+      btn.style.transform='scale(0.97)';
+      setTimeout(()=>btn.style.transform='', 120);
       fn();
-    }));
+    });
   };
-  bind('[data-act="appointments"]', ()=> navigate(()=>showBookings('today','')));
-  bind('[data-act="profile"]',      ()=> navigate(showProfile));
-  bind('[data-act="services"]',     ()=> navigate(showServicesManager));
-  bind('[data-act="calendar"]',     ()=> navigate(showCalendar));
+  document.querySelectorAll('[data-act="appointments"]').forEach(b=> tap(b, ()=>navigate(()=>showBookings('today',''))));
+  document.querySelectorAll('[data-act="profile"]').forEach(b=> tap(b, ()=>navigate(showProfile)));
+  document.querySelectorAll('[data-act="services"]').forEach(b=> tap(b, ()=>navigate(showServicesManager)));
+  document.querySelectorAll('[data-act="calendar"]').forEach(b=> tap(b, ()=>navigate(showCalendar)));
 }
-
-function headerHTML(title){
-  return `
-    <div class="cb-header">
-      <div class="cb-header__row">
-        <button class="cb-back" id="cbBack">←</button>
-        <h2 class="cb-title">${esc(title)}</h2>
-      </div>
-      <div class="cb-sep"></div>
-    </div>
-  `;
-}
-function mountHeaderBack(){ const b = $id('cbBack'); if (b) b.onclick = goBackOrHome; }
 
 async function showBookings(period='today', status=''){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
@@ -126,67 +127,153 @@ async function showBookings(period='today', status=''){
   $content.innerHTML = `
     ${headerHTML('Записи')}
     <div class="cb-wrap">
-      <div class="booking-item" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="backbtn" data-p="today">Сегодня</button>
-        <button class="backbtn" data-p="tomorrow">Завтра</button>
-        <button class="backbtn" data-p="week">Неделя</button>
-        <select id="statusSel" class="input" style="min-width:140px">
-          <option value="">Все</option>
-          <option value="pending">Ожидание</option>
-          <option value="confirmed">Подтверждено</option>
-          <option value="rejected">Отклонено</option>
-        </select>
+      <div class="booking-item">
+        <div class="filters-tabs">
+          <button class="filter-tab" data-filter="today">Сегодня</button>
+          <button class="filter-tab" data-filter="tomorrow">Завтра</button>
+          <button class="filter-tab" data-filter="week">Неделя</button>
+          <button class="filter-tab" data-filter="month">Месяц</button>
+          <button class="filter-tab" data-filter="all">Все</button>
+        </div>
+
+        <div class="stats-grid-3">
+          <div class="stat-card">
+            <div class="stat-number confirmed" id="confirmedCount">0</div>
+            <div class="stat-label">Подтверждено</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number pending" id="pendingCount">0</div>
+            <div class="stat-label">Ожидает</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number rejected" id="rejectedCount">0</div>
+            <div class="stat-label">Отклонено</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px">
+          <span style="opacity:.8;font-size:13px">Статус:</span>
+          <button class="backbtn" data-status="">Все</button>
+          <button class="backbtn" data-status="pending">Ожидание</button>
+          <button class="backbtn" data-status="confirmed">Подтверждено</button>
+          <button class="backbtn" data-status="rejected">Отклонено</button>
+        </div>
       </div>
-      <div id="summary" class="booking-item" style="margin-top:8px"></div>
-      <div id="list" style="margin-top:10px"></div>
-    </div>
-  `;
+
+      <div id="appointmentsList" class="appointments-list" style="margin-top:10px"></div>
+
+      <div id="emptyState" class="empty-state" style="display:none">
+        <div class="empty-icon">📅</div>
+        <div class="empty-title">Нет записей</div>
+        <div class="empty-subtitle">На выбранный период записей не найдено</div>
+      </div>
+    </div>`;
   mountHeaderBack();
-  document.querySelectorAll('[data-p]').forEach(b=> b.onclick = ()=> showBookings(b.dataset.p, $id('statusSel').value));
-  $id('statusSel').value = status;
-  $id('statusSel').onchange = (e)=> showBookings(period, e.target.value);
 
-  const q = new URLSearchParams({ telegram_id: CURRENT_TG_ID, period });
-  if (status) q.append('status', status);
-  const resp = await api(`/api/bookings/for_master/?${q.toString()}`);
-  const s = resp.summary || {total:0,pending:0,confirmed:0,rejected:0};
-  $id('summary').innerHTML = `Всего: <b>${s.total}</b> • ⏳ ${s.pending} • ✅ ${s.confirmed} • ❌ ${s.rejected}`;
+  const statusText = (st)=> st==='pending'?'Ожидает':(st==='confirmed'?'Подтверждено':'Отклонено');
+  const initials = (name)=> String(name||'').split(' ').map(n=>n[0]||'').join('').toUpperCase().slice(0,2) || 'CL';
 
-  const items = resp.items || resp || [];
-  const list = $id('list');
-  if (!items.length){ list.innerHTML = '<div class="booking-item">Нет броней</div>'; return; }
+  const tabs = [...document.querySelectorAll('.filter-tab')];
+  const setActiveTab = (key)=>{
+    tabs.forEach(t=> t.classList.toggle('active', t.dataset.filter===key));
+  };
+  setActiveTab(period);
 
-  const map = {pending:'Ожидание', confirmed:'Подтверждено ✅', rejected:'Отклонено ❌'};
-  list.innerHTML = '';
-  items.forEach(b=>{
-    const div = document.createElement('div'); div.className='booking-item';
-    div.innerHTML = `
-      <b>Клиент:</b> ${esc(b.name)}<br>
-      <b>Услуга:</b> ${esc(b.slot?.service?.name ?? '—')}<br>
-      <b>Время:</b> ${b.slot ? new Date(b.slot.time).toLocaleString() : '—'}<br>
-      <div style="margin-top:6px">${map[b.status] ?? ''}</div>
-      ${b.status === 'pending' ? `
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="tg-btn" data-confirm="${b.id}">Подтвердить</button>
-          <button class="backbtn" data-reject="${b.id}">Отклонить</button>
-        </div>` : ''}
-    `;
-    list.appendChild(div);
+  const buildQuery = ()=>{
+    const q = new URLSearchParams({ telegram_id: CURRENT_TG_ID });
+    if (['today','tomorrow','week'].includes(period)) q.set('period', period);
+    if (status) q.set('status', status);
+    return q;
+  };
+  const resp = await api(`/api/bookings/for_master/?${buildQuery().toString()}`);
+  const itemsRaw = resp.items || resp || [];
+  let items = itemsRaw;
+
+  const summary = resp.summary || (()=>{
+    const s = {confirmed:0,pending:0,rejected:0};
+    items.forEach(i=> s[i.status] = (s[i.status]||0)+1);
+    s.total = items.length; return s;
+  })();
+  $id('confirmedCount').textContent = summary.confirmed ?? 0;
+  $id('pendingCount').textContent   = summary.pending ?? 0;
+  $id('rejectedCount').textContent  = summary.rejected ?? 0;
+
+  const listEl = $id('appointmentsList');
+  const emptyEl = $id('emptyState');
+  const render = ()=>{
+    const filtered = status ? items.filter(a=>a.status===status) : items;
+
+    listEl.innerHTML = '';
+    if (!filtered.length){
+      listEl.style.display='none';
+      emptyEl.style.display='block';
+      return;
+    }
+    listEl.style.display='flex';
+    emptyEl.style.display='none';
+
+    filtered.forEach((a, idx)=>{
+      const card = document.createElement('div');
+      card.className = `appointment-card ${a.status}`;
+      card.style.animationDelay = `${idx*0.05}s`;
+      card.innerHTML = `
+        <div class="appointment-status status-${a.status}">${statusText(a.status)}</div>
+
+        <div class="appointment-header">
+          <div class="client-avatar">${initials(a.name || a.clientName)}</div>
+          <div class="appointment-info">
+            <div class="client-name">${esc(a.name || a.clientName || 'Клиент')}</div>
+            <div class="appointment-service">${esc(a.slot?.service?.name || a.service || '—')}</div>
+            <div class="appointment-time">${a.slot ? new Date(a.slot.time).toLocaleString() : (esc(a.time||'—'))}</div>
+          </div>
+        </div>
+
+        ${a.status==='pending' ? `
+        <div class="appointment-actions">
+          <button class="action-button accept-button" data-accept="${a.id}">Принять</button>
+          <button class="action-button reject-button" data-reject="${a.id}">Отклонить</button>
+        </div>` : ``}
+      `;
+      listEl.appendChild(card);
+    });
+
+    listEl.querySelectorAll('[data-accept]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        await api(`/api/bookings/${btn.dataset.accept}/confirm/`, {method:'POST'});
+        toast('Подтверждено');
+        showBookings(period, status);
+      };
+    });
+    listEl.querySelectorAll('[data-reject]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        await api(`/api/bookings/${btn.dataset.reject}/reject/`, {method:'POST'});
+        toast('Отклонено');
+        showBookings(period, status);
+      };
+    });
+  };
+  render();
+
+  tabs.forEach(t=>{
+    t.addEventListener('click', ()=>{
+      period = t.dataset.filter;
+      setActiveTab(period);
+      showBookings(period, status);
+    });
   });
-  list.querySelectorAll('[data-confirm]').forEach(btn=> btn.onclick = async ()=>{
-    await api(`/api/bookings/${btn.dataset.confirm}/confirm/`, {method:'POST'});
-    toast('Подтверждено'); showBookings(period, status);
-  });
-  list.querySelectorAll('[data-reject]').forEach(btn=> btn.onclick = async ()=>{
-    await api(`/api/bookings/${btn.dataset.reject}/reject/`, {method:'POST'});
-    toast('Отклонено'); showBookings(period, status);
+
+  document.querySelectorAll('[data-status]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      status = btn.dataset.status;
+      showBookings(period, status);
+    });
   });
 }
 
 async function showProfile(){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
   let v = {};
-  try{ v = await api(`/api/masters/me/?telegram_id=${CURRENT_TG_ID}`); } catch(_){ v={}; }
+  try{ v = await api(`/api/masters/me/?telegram_id=${CURRENT_TG_ID}`); }catch{}
 
   $content.innerHTML = `
     ${headerHTML('Мой профиль')}
@@ -209,29 +296,23 @@ async function showProfile(){
           <button id="pCancel" class="backbtn">Отмена</button>
         </div>
       </div>
-    </div>
-  `;
+    </div>`;
   mountHeaderBack();
   $id('pCancel').onclick = goBackOrHome;
 
   $id('pSave').onclick = async ()=>{
     const payload = {
       telegram_id: CURRENT_TG_ID,
-      name: $id('pName').value.trim(),
-      bio: $id('pBio').value.trim(),
+      name:  $id('pName').value.trim(),
+      bio:   $id('pBio').value.trim(),
       phone: $id('pPhone').value.trim(),
       avatar_url: $id('pAvatar').value.trim()
     };
-    if (!payload.name) return toast('Имя обязательно');
-    await api('/api/masters/me_update/', {
-      method:'PATCH', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
-    toast('Сохранено');
-    goBackOrHome();
-    // обновим имя на главном экране
-    $id('masterName').textContent = payload.name;
-    $id('masterLogo').textContent = (payload.name[0] || 'M').toUpperCase();
+    if (!payload.name){ toast('Имя обязательно'); return; }
+    try{
+      await api('/api/masters/me_update/', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      toast('Сохранено'); showProfile();
+    }catch{}
   };
 }
 
@@ -240,16 +321,15 @@ async function showServicesManager(){
   const services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`);
 
   $content.innerHTML = `
-    ${headerHTML('Услуги и слоты')}
+    ${headerHTML('Мои услуги')}
     <div class="cb-wrap">
       <div class="booking-item">
         <label>Новая услуга</label>
-        <input id="svcName" class="input" placeholder="Например: Стрижка">
+        <input id="svcName" class="input" placeholder="Напр. Стрижка">
         <button id="svcCreate" class="tg-btn" style="margin-top:8px">Создать</button>
       </div>
       <div id="svcList" style="margin-top:10px"></div>
-    </div>
-  `;
+    </div>`;
   mountHeaderBack();
 
   $id('svcCreate').onclick = async ()=>{
@@ -266,11 +346,13 @@ async function showServicesManager(){
   if (!services.length){ list.innerHTML = '<div class="booking-item">Пока нет услуг</div>'; return; }
   list.innerHTML = '';
   services.forEach(s=>{
-    const el = document.createElement('div'); el.className = 'booking-item';
-    el.innerHTML = `<b>${esc(s.name)}</b><br><button class="backbtn" data-id="${s.id}" style="margin-top:6px">Слоты</button>`;
+    const el = document.createElement('div'); el.className='booking-item';
+    el.innerHTML = `<b>${esc(s.name)}</b><br><button class="backbtn" data-id="${s.id}">Слоты</button>`;
     list.appendChild(el);
   });
-  list.querySelectorAll('[data-id]').forEach(b=> b.onclick = ()=> navigate(()=>showSlotsManager(Number(b.dataset.id))));
+  list.querySelectorAll('[data-id]').forEach(b=>{
+    b.onclick = ()=> navigate(()=>showSlotsManager(Number(b.dataset.id)));
+  });
 }
 
 async function showSlotsManager(serviceId){
@@ -290,7 +372,7 @@ async function showSlotsManager(serviceId){
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
           <input id="gStart" type="date" class="input">
           <input id="gEnd"   type="date" class="input">
-          <input id="gTimes" type="text" class="input" placeholder="напр. 10:00, 11:30, 15:00">
+          <input id="gTimes" type="text" class="input" placeholder="например: 10:00, 11:30, 15:00">
         </div>
         <div style="margin-top:6px">
           <label>Дни недели:</label>
@@ -305,10 +387,9 @@ async function showSlotsManager(serviceId){
         <button id="gRun" class="tg-btn" style="margin-top:8px">Сгенерировать</button>
       </div>
 
-      <h3 style="color:#fff;margin:12px 0 6px">Слоты</h3>
+      <h3 style="color:#fff;margin:12px 0 8px">Слоты</h3>
       <div id="slotList"></div>
-    </div>
-  `;
+    </div>`;
   mountHeaderBack();
 
   $id('oneAdd').onclick = async ()=>{
@@ -370,13 +451,12 @@ async function showCalendar(year, month){
       </div>
       <div id="grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px"></div>
       <div id="dayBox" class="booking-item" style="margin-top:12px; display:none"></div>
-    </div>
-  `;
+    </div>`;
   mountHeaderBack();
   $id('calPrev').onclick = ()=>{ let y=year, m=month-1; if(m<1){m=12;y--;} showCalendar(y,m); };
   $id('calNext').onclick = ()=>{ let y=year, m=month+1; if(m>12){m=1;y++;} showCalendar(y,m); };
 
-  const grid = $id('grid');
+  const grid = $id('grid'); grid.innerHTML='';
   days.forEach(d=>{
     const el = document.createElement('div');
     el.className = 'booking-item';
@@ -404,18 +484,16 @@ async function showCalendar(year, month){
           <button id="addSlot" class="tg-btn">Добавить</button>
         </div>
       </div>
-      <div id="slotsList" style="margin-top:8px"></div>
-    `;
+      <div id="slotsList" style="margin-top:8px"></div>`;
     $id('dayHide').onclick = ()=>{ box.style.display='none'; };
 
     const services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`);
-    const sel = $id('svcSel');
-    sel.innerHTML = services.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    $id('svcSel').innerHTML = services.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
 
     renderSlots(d.slots);
 
     $id('addSlot').onclick = async ()=>{
-      const svc = Number(sel.value);
+      const svc = Number($id('svcSel').value);
       const timeHHMM = $id('timeInp').value;
       if (!svc || !timeHHMM) return toast('Заполни услугу и время');
       await api('/api/slots/', {
@@ -427,7 +505,7 @@ async function showCalendar(year, month){
         const fresh = await api(`/api/slots/calendar/?telegram_id=${CURRENT_TG_ID}&year=${year}&month=${month}`);
         const nd = (fresh.days||[]).find(x=>x.date===iso) || {slots:[]};
         showDay(nd);
-      }, 50);
+      }, 60);
     };
   }
 

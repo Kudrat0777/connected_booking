@@ -6,13 +6,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Панель мастера</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=13" />
+  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=22" />
   <style>
     body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui}
     .bg-gradient{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh}
 
     .container{max-width:400px;margin:0 auto;padding:20px;min-height:100vh;display:flex;flex-direction:column}
-    .header{ text-align:center; margin-bottom:32px; padding-top:12px }
+    .header{text-align:center;margin-bottom:32px;padding-top:12px}
     .master-logo{width:100px;height:100px;border-radius:50%;
       background:linear-gradient(135deg,#FF6B6B,#FF8E8E);display:flex;align-items:center;justify-content:center;
       font-size:40px;color:#fff;margin:0 auto 16px;box-shadow:0 8px 32px rgba(255,107,107,.3);border:4px solid rgba(255,255,255,.2)}
@@ -39,24 +39,23 @@
     .stat-num{font-size:22px;font-weight:800}
     .stat-label{font-size:12px;color:rgba(255,255,255,.82)}
 
+    /* область экранов */
     #appArea{display:none;max-width:640px;margin:0 auto;padding:12px 14px 22px}
     #content{margin-top:6px}
 
+    /* шапка экранов со стрелкой */
     .cb-header{position:sticky;top:0;z-index:5;background:transparent}
     .cb-header__row{display:flex;align-items:center;gap:10px}
     .cb-back{border:0;background:rgba(0,0,0,.35);color:#fff;border-radius:10px;padding:10px 12px;font-size:16px;cursor:pointer}
     .cb-title{color:#fff;font-size:18px;font-weight:800;margin:0}
     .cb-sep{height:1px;background:rgba(255,255,255,.25);margin:10px 0}
 
+    /* общие карточки в панели */
     .cb-wrap{padding:6px 0}
-    .cb-sub{color:#e7eef7;opacity:.9;margin:2px 0 10px}
-    .cb-loading{opacity:.9;text-align:center;padding:18px;color:#e7eef7}
-    .cb-spin{width:26px;height:26px;border-radius:50%;margin:0 auto 8px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin 1s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-
     .booking-item{background:#121a24;border:1px solid #223244;border-radius:14px;padding:12px;color:#e7eef7}
     .input{background:#0f1720;border:1px solid #223244;color:#e7eef7;border-radius:10px;padding:10px}
 
+    /* секции дат/слотов */
     .date-section{background:#0f1720;border:1px solid #223244;border-radius:16px;padding:14px;margin-bottom:12px;color:#e7eef7}
     .date-header{display:flex;align-items:center;gap:10px;border-bottom:1px solid #223244;padding-bottom:8px;margin-bottom:10px}
     .date-number{width:42px;height:42px;border-radius:10px;background:#2f7de7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
@@ -65,6 +64,49 @@
     .time-slot{background:#0b1220;border:1px solid #223244;border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer}
     .time-slot:hover{transform:translateY(-1px);border-color:#2f7de7}
     .time-slot.occupied{opacity:.45;cursor:not-allowed;border-style:dashed}
+      /* ==== Записи мастера – карточки, фильтры, статистика ==== */
+.filters-tabs{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px}
+.filter-tab{background:rgba(255,255,255,.12);border:1px solid #223244;border-radius:20px;padding:8px 14px;font-size:13px;color:#e7eef7;cursor:pointer;white-space:nowrap;transition:.2s}
+.filter-tab:hover{background:rgba(255,255,255,.18)}
+.filter-tab.active{background:#2f7de7;border-color:#2f7de7;color:#fff}
+
+.stats-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.stat-card{background:#0f1720;border:1px solid #223244;border-radius:12px;padding:12px;text-align:center}
+.stat-number{font-size:20px;font-weight:800}
+.stat-number.confirmed{color:#49d27a}
+.stat-number.pending{color:#ffb847}
+.stat-number.rejected{color:#ff6b6b}
+.stat-label{font-size:12px;opacity:.8}
+
+.appointments-list{display:flex;flex-direction:column;gap:12px}
+.appointment-card{background:#0f1720;border:1px solid #223244;border-radius:16px;padding:16px;position:relative}
+.appointment-card.pending{border-color:#ffb84733;box-shadow:0 0 0 1px #ffb84722 inset}
+.appointment-card.confirmed{border-color:#49d27a33;box-shadow:0 0 0 1px #49d27a22 inset}
+.appointment-card.rejected{border-color:#ff6b6b33;box-shadow:0 0 0 1px #ff6b6b22 inset;opacity:.85}
+
+.appointment-status{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.status-pending{background:#ffb847;color:#121212}
+.status-confirmed{background:#49d27a;color:#121212}
+.status-rejected{background:#ff6b6b;color:#121212}
+
+.appointment-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-right:84px}
+.client-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#2f7de7,#5BA3F5);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0;font-weight:700}
+.appointment-info{flex:1}
+.client-name{font-size:15px;font-weight:700;color:#e7eef7}
+.appointment-service,.appointment-time{font-size:13px;opacity:.85}
+
+.appointment-actions{margin-top:10px;padding-top:10px;border-top:1px solid #223244;display:flex;gap:10px}
+.action-button{flex:1;padding:10px 12px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.accept-button{background:#49d27a;color:#0c151e}
+.accept-button:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.reject-button{background:#ff6b6b;color:#0c151e}
+.reject-button:hover{filter:brightness(1.05);transform:translateY(-1px)}
+
+.empty-state{ text-align:center;padding:40px 12px;opacity:.85 }
+.empty-icon{font-size:42px;margin-bottom:8px}
+.empty-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.empty-subtitle{font-size:13px}
+
   </style>
 </head>
 <body class="bg-gradient">
@@ -130,6 +172,6 @@
   <div id="loader" class="loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
   <div id="toast" class="toast"></div>
 
-  <script src="{% static 'miniapp/master.js' %}?v=13"></script>
+  <script src="{% static 'miniapp/master.js' %}?v=22"></script>
 </body>
 </html>
