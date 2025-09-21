@@ -1,0 +1,171 @@
+.master #appArea{display:none;max-width:640px;margin:0 auto;padding:12px 14px 22px}
+.master #content{margin-top:12px}
+
+.master .cb-header{position:sticky;top:0;z-index:5;background:var(--tg-theme-bg-color, var(--bg))}
+.master .bg-gradient .cb-header{background:transparent}
+.master .bg-gradient .cb-title{color:#fff}
+.master .bg-gradient .cb-back{background:rgba(0,0,0,.35);color:#fff}
+.master .bg-gradient .cb-sep{background:rgba(255,255,255,.25)}
+
+.master .booking-item{
+  background:var(--panel-2);border:1px solid var(--line);
+  border-radius:14px;padding:12px;color:var(--text)
+}
+.master .input{
+  width:100%;background:#0b1220;border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:10px
+}
+.master .backbtn{background:#223244;color:var(--text);border:0;border-radius:12px;padding:8px 10px;cursor:pointer}
+.master .tg-btn{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}
+.master .tg-btn:hover{filter:brightness(1.05);transform:translateY(-1px)}
+
+.master .m-fade-in{animation:mFadeIn .6s ease-out}
+@keyframes mFadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.master .m-slide-in{animation:mSlideIn .4s ease-out both}
+@keyframes mSlideIn{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+.master .m-scale-in{animation:mScaleIn .4s ease-out}
+@keyframes mScaleIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.master .m-spin{
+  width:28px;height:28px;border-radius:50%;margin:0 auto 10px;
+  border:3px solid #2b3441;border-top-color:var(--tg-theme-button-color, var(--accent));
+  animation:mSpin 1s linear infinite
+}
+@keyframes mSpin{to{transform:rotate(360deg)}}
+
+.master .bg-gradient{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh}
+.master #homePanel.container{min-height:100vh}
+.master #homePanel .header{ text-align:center; margin-bottom:32px; padding-top:12px }
+.master #homePanel .master-logo{
+  width:100px;height:100px;border-radius:50%;
+  background:linear-gradient(135deg,#FF6B6B,#FF8E8E);
+  display:flex;align-items:center;justify-content:center;
+  font-size:40px;color:#fff;margin:0 auto 16px;
+  box-shadow:0 8px 32px rgba(255,107,107,.3);border:4px solid rgba(255,255,255,.2)
+}
+.master #homePanel .welcome-text{color:#fff;font-size:24px;font-weight:700;margin:0 0 4px}
+.master #homePanel .master-name{color:rgba(255,255,255,.85);font-size:16px}
+.master #homePanel .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-content:start}
+.master #homePanel .menu-button{
+  background:rgba(255,255,255,.95);border:1px solid rgba(255,255,255,.2);border-radius:20px;
+  padding:24px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;
+  text-decoration:none;color:#222;box-shadow:0 4px 20px rgba(0,0,0,.08);backdrop-filter:blur(8px);transition:.25s
+}
+.master #homePanel .menu-button:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(0,0,0,.14);background:#fff}
+.master #homePanel .menu-icon{
+  width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff
+}
+.master #homePanel .appointments-icon{background:linear-gradient(135deg,#4ECDC4,#44A08D)}
+.master #homePanel .profile-icon{background:linear-gradient(135deg,#667eea,#764ba2)}
+.master #homePanel .services-icon{background:linear-gradient(135deg,#f093fb,#f5576c)}
+.master #homePanel .calendar-icon{background:linear-gradient(135deg,#ffecd2,#fcb69f);color:#8B4513}
+.master #homePanel .menu-title{font-weight:700}
+.master #homePanel .menu-subtitle{font-size:12px;color:#666;text-align:center}
+.master #homePanel .stats{
+  margin-top:22px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.25);
+  border-radius:16px;padding:18px;backdrop-filter:blur(8px);color:#fff
+}
+.master #homePanel .stats h3{margin:0 0 12px;text-align:center;font-size:16px}
+.master #homePanel .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center}
+.master #homePanel .stat-num{font-size:22px;font-weight:800}
+.master #homePanel .stat-label{font-size:12px;color:rgba(255,255,255,.82)}
+
+.master .filters-tabs{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px}
+.master .filter-tab{
+  background:rgba(255,255,255,.12);border:1px solid #223244;border-radius:20px;
+  padding:8px 14px;font-size:13px;color:#e7eef7;cursor:pointer;white-space:nowrap;transition:.2s
+}
+.master .filter-tab:hover{background:rgba(255,255,255,.18)}
+.master .filter-tab.active{background:#2f7de7;border-color:#2f7de7;color:#fff}
+
+.master .stats-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.master .stat-card{background:#0f1720;border:1px solid #223244;border-radius:12px;padding:12px;text-align:center}
+.master .stat-number{font-size:20px;font-weight:800}
+.master .stat-number.confirmed{color:#49d27a}
+.master .stat-number.pending{color:#ffb847}
+.master .stat-number.rejected{color:#ff6b6b}
+.master .stat-label{font-size:12px;opacity:.8}
+
+.master .appointments-list{display:flex;flex-direction:column;gap:12px}
+.master .appointment-card{background:#0f1720;border:1px solid #223244;border-radius:16px;padding:16px;position:relative}
+.master .appointment-card.pending{border-color:#ffb84733;box-shadow:0 0 0 1px #ffb84722 inset}
+.master .appointment-card.confirmed{border-color:#49d27a33;box-shadow:0 0 0 1px #49d27a22 inset}
+.master .appointment-card.rejected{border-color:#ff6b6b33;box-shadow:0 0 0 1px #ff6b6b22 inset;opacity:.85}
+.master .appointment-status{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.master .status-pending{background:#ffb847;color:#121212}
+.master .status-confirmed{background:#49d27a;color:#121212}
+.master .status-rejected{background:#ff6b6b;color:#121212}
+.master .appointment-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-right:84px}
+.master .client-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background:linear-gradient(135deg,#2f7de7,#5BA3F5);
+  display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0;font-weight:700
+}
+.master .appointment-info{flex:1}
+.master .client-name{font-size:15px;font-weight:700;color:#e7eef7}
+.master .appointment-service,.master .appointment-time{font-size:13px;opacity:.85}
+.master .appointment-actions{margin-top:10px;padding-top:10px;border-top:1px solid #223244;display:flex;gap:10px}
+.master .action-button{flex:1;padding:10px 12px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.master .accept-button{background:#49d27a;color:#0c151e}
+.master .accept-button:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.master .reject-button{background:#ff6b6b;color:#0c151e}
+.master .reject-button:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.master .empty-state{text-align:center;padding:40px 12px;opacity:.85}
+.master .empty-icon{font-size:42px;margin-bottom:8px}
+.master .empty-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.master .empty-subtitle{font-size:13px}
+
+.master .add-service-card{
+  background:linear-gradient(135deg,#2f7de7,#5BA3F5);border-radius:16px;padding:18px;color:#fff;margin-bottom:14px
+}
+.master .add-service-title{font-size:18px;font-weight:800;text-align:center;margin:0 0 12px}
+.master .add-service-button{
+  width:100%;border:2px solid rgba(255,255,255,.4);background:transparent;color:#fff;
+  border-radius:12px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;transition:.2s
+}
+.master .add-service-button:hover{background:rgba(255,255,255,.15);transform:translateY(-1px)}
+
+.master .services-list{display:flex;flex-direction:column;gap:12px}
+.master .service-card{background:#0f1720;border:1px solid #223244;border-radius:16px;padding:16px;position:relative;color:#e7eef7}
+.master .service-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.master .service-icon{
+  width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#667eea,#764ba2);
+  display:flex;align-items:center;justify-content:center;font-size:22px
+}
+.master .service-name{font-size:16px;font-weight:800}
+.master .service-details{display:flex;gap:14px;font-size:13px;opacity:.85}
+.master .service-actions{margin-top:12px;padding-top:10px;border-top:1px solid #223244}
+.master .slots-title{font-size:13px;font-weight:700;margin-bottom:6px}
+.master .slots-list{display:flex;flex-wrap:wrap;gap:8px}
+.master .slot-tag{background:#2f7de7;color:#fff;border-radius:16px;padding:4px 10px;font-size:12px;font-weight:700}
+.master .no-slots{opacity:.7;font-size:13px;font-style:italic}
+.master .add-slot-button{
+  background:#49d27a;color:#0b1320;border:0;border-radius:10px;padding:10px 12px;
+  font-weight:800;cursor:pointer;transition:.15s;display:inline-flex;gap:6px;align-items:center
+}
+.master .add-slot-button:hover{transform:translateY(-1px)}
+.master .service-menu{position:absolute;top:12px;right:12px}
+.master .menu-button{background:transparent;border:0;color:#9db0c6;font-size:18px;cursor:pointer;padding:4px}
+.master .menu-button:hover{color:#fff}
+
+.master .modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center;z-index:1000;
+  opacity:0;visibility:hidden;transition:.25s
+}
+.master .modal.active{opacity:1;visibility:visible}
+.master .modal-content{
+  background:#0f1720;border:1px solid #223244;color:#e7eef7;border-radius:16px;
+  padding:18px;width:92%;max-width:380px;transform:translateY(14px);transition:.25s
+}
+.master .modal.active .modal-content{transform:translateY(0)}
+.master .modal-title{font-size:18px;font-weight:800;text-align:center;margin-bottom:12px}
+.master .form-group{margin-bottom:12px}
+.master .form-label{display:block;font-size:13px;margin-bottom:6px}
+.master .form-input{width:100%;background:#0b1220;border:1px solid #223244;color:#e7eef7;border-radius:10px;padding:10px}
+.master .modal-actions{display:flex;gap:10px;margin-top:12px}
+.master .modal-button{flex:1;border:0;border-radius:10px;padding:12px;font-weight:800;cursor:pointer}
+.master .primary-button{background:#2f7de7;color:#fff}
+.master .secondary-button{background:#1a2533;color:#e7eef7;border:1px solid #223244}
+
+.master #grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+.master #dayBox{margin-top:12px;display:none}
