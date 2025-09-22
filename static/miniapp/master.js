@@ -276,7 +276,6 @@ async function showBookings(period='today', status=''){
 async function showManualBooking(){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
 
-  // 1) Подтянем услуги мастера
   let services = [];
   try { services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`); } catch(_){ services = []; }
 
@@ -357,10 +356,8 @@ async function showManualBooking(){
     loadFreeSlots(services[0].id);
   }
 
-  // при смене услуги — заново подтягиваем слоты
   $svc.onchange = ()=> loadFreeSlots(Number($svc.value));
 
-  // показать/скрыть панель быстрого добавления одиночного слота
   $id('nbAddOneBtn')?.addEventListener('click', ()=> { $addPanel.style.display='block'; });
   $id('nbOneCancel')?.addEventListener('click', ()=> { $addPanel.style.display='none'; });
 
@@ -378,7 +375,7 @@ async function showManualBooking(){
       });
       toast('Слот добавлен');
       $addPanel.style.display='none';
-      await loadFreeSlots(sid); // обновим список слотов
+      await loadFreeSlots(sid);
     }catch(_){ toast('Ошибка добавления слота'); }
   };
 
@@ -410,35 +407,121 @@ async function showManualBooking(){
 
   $id('nbCancel').onclick = goBackOrHome;
 }
+
 async function showProfile(){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
+
   let v = {};
   try{ v = await api(`/api/masters/me/?telegram_id=${CURRENT_TG_ID}`); }catch{}
+  let st = { total_bookings: 0, experience_years: v.experience_years||0 };
+  try{ st = await api(`/api/masters/stats/?telegram_id=${CURRENT_TG_ID}`);}catch{}
+
+  const displayName = v.name || 'Мастер';
+  const initials = (displayName||'M').trim().split(/\s+/).map(x=>x[0]||'').join('').toUpperCase().slice(0,2) || 'M';
+  const avatarBg = v.avatar_url ? `background-image:url('${v.avatar_url}');background-size:cover;background-position:center;` : '';
 
   $content.innerHTML = `
     ${headerHTML('Мой профиль')}
     <div class="cb-wrap">
-      <div class="booking-item">
-        <label>Имя</label>
-        <input id="pName" class="input" type="text" value="${esc(v.name||'')}">
 
-        <label style="margin-top:8px">Описание</label>
-        <textarea id="pBio" class="input" rows="4">${esc(v.bio||'')}</textarea>
+      <div class="booking-item" style="text-align:center;padding:24px 16px">
+        <div style="width:100px;height:100px;border-radius:50%;margin:0 auto 12px;
+            background:linear-gradient(135deg,#2f7de7,#5BA3F5);position:relative;box-shadow:0 8px 32px rgba(51,144,236,.3);${avatarBg}">
+          ${v.avatar_url ? '' : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff">${initials}</div>`}
+          <label for="pAvatarFile" title="Изменить фото"
+            style="position:absolute;right:0;bottom:0;width:32px;height:32px;border-radius:50%;
+                   background:#4CAF50;border:3px solid #121a24;display:flex;align-items:center;justify-content:center;
+                   font-size:14px;color:#fff;cursor:pointer">📷</label>
+          <input id="pAvatarFile" type="file" accept="image/*" style="display:none">
+        </div>
+        <div style="font-size:22px;font-weight:800;margin-top:6px" id="displayName">${esc(displayName)}</div>
+        <div style="opacity:.85;font-size:14px;margin-top:4px">${esc(v.bio ? v.bio.split('\n')[0] : 'Мастер сервиса')}</div>
 
-        <label style="margin-top:8px">Телефон</label>
-        <input id="pPhone" class="input" type="tel" placeholder="+998 xx xxx xx xx" value="${esc(v.phone||'')}">
-
-        <label style="margin-top:8px">Аватар URL</label>
-        <input id="pAvatar" class="input" type="url" placeholder="https://..." value="${esc(v.avatar_url||'')}">
-
-        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-          <button id="pSave" class="tg-btn">Сохранить</button>
-          <button id="pCancel" class="backbtn">Отмена</button>
+        <!-- мини-рейтинги из макета (пока статично) -->
+        <div style="display:flex;justify-content:center;gap:8px;color:#FF9800;margin-top:8px">
+          <span>⭐</span><span>4.9</span><span style="opacity:.9">(127 отзывов)</span>
         </div>
       </div>
-    </div>`;
+
+      <div class="booking-item" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-color:transparent">
+        <div style="text-align:center;font-weight:800;margin-bottom:10px">Статистика</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">
+          <div><div style="font-size:22px;font-weight:800">${st.total_bookings||0}</div><div style="opacity:.9;font-size:12px">Записей</div></div>
+          <div><div style="font-size:22px;font-weight:800">98%</div><div style="opacity:.9;font-size:12px">Рейтинг</div></div>
+          <div><div style="font-size:22px;font-weight:800" id="statYears">${st.experience_years||0}</div><div style="opacity:.9;font-size:12px">Года</div></div>
+        </div>
+      </div>
+
+      <div class="booking-item">
+        <div style="display:grid;gap:10px">
+          <div>
+            <label>Имя и фамилия</label>
+            <input id="pName" class="input" type="text" value="${esc(v.name||'')}" disabled>
+          </div>
+
+          <div>
+            <label>Описание</label>
+            <textarea id="pBio" class="input" rows="4" disabled>${esc(v.bio||'')}</textarea>
+          </div>
+
+          <div style="display:grid;gap:10px;grid-template-columns:1fr">
+            <div>
+              <label>Номер телефона</label>
+              <input id="pPhone" class="input" type="tel" value="${esc(v.phone||'')}" disabled>
+            </div>
+            <div>
+              <label>Email</label>
+              <input id="pEmail" class="input" type="email" value="${esc(v.email||'')}" placeholder="name@example.com" disabled>
+            </div>
+            <div>
+              <label>Опыт (годы)</label>
+              <input id="pExp" class="input" type="number" min="0" value="${Number(v.experience_years||0)}" disabled>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <button id="pEdit" class="tg-btn">Редактировать</button>
+            <button id="pSave" class="tg-btn" style="display:none">Сохранить</button>
+            <button id="pCancel" class="backbtn" style="display:none">Отмена</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  `;
   mountHeaderBack();
-  $id('pCancel').onclick = goBackOrHome;
+
+  const inputs = ['pName','pBio','pPhone','pEmail','pExp'].map($id);
+  const enable = (on)=> inputs.forEach(el=> el && (el.disabled = !on));
+  let snapshot = null;
+
+  $id('pEdit').onclick = ()=>{
+    snapshot = {
+      name:$id('pName').value, bio:$id('pBio').value,
+      phone:$id('pPhone').value, email:$id('pEmail').value,
+      exp:$id('pExp').value
+    };
+    enable(true);
+    $id('pEdit').style.display='none';
+    $id('pSave').style.display='';
+    $id('pCancel').style.display='';
+    $id('pName').focus();
+  };
+
+  $id('pCancel').onclick = ()=>{
+    if (snapshot){
+      $id('pName').value  = snapshot.name;
+      $id('pBio').value   = snapshot.bio;
+      $id('pPhone').value = snapshot.phone;
+      $id('pEmail').value = snapshot.email;
+      $id('pExp').value   = snapshot.exp;
+    }
+    enable(false);
+    $id('pEdit').style.display='';
+    $id('pSave').style.display='none';
+    $id('pCancel').style.display='none';
+    $id('displayName').textContent = $id('pName').value || 'Мастер';
+  };
 
   $id('pSave').onclick = async ()=>{
     const payload = {
@@ -446,14 +529,40 @@ async function showProfile(){
       name:  $id('pName').value.trim(),
       bio:   $id('pBio').value.trim(),
       phone: $id('pPhone').value.trim(),
-      avatar_url: $id('pAvatar').value.trim()
+      email: $id('pEmail').value.trim(),
+      experience_years: Number($id('pExp').value||0)
     };
     if (!payload.name){ toast('Имя обязательно'); return; }
     try{
-      await api('/api/masters/me_update/', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      toast('Сохранено'); showProfile();
-    }catch{}
+      const res = await api('/api/masters/me_update/', {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      toast('Сохранено');
+      enable(false);
+      $id('pEdit').style.display='';
+      $id('pSave').style.display='none';
+      $id('pCancel').style.display='none';
+      $id('displayName').textContent = res.name || payload.name;
+      $id('statYears').textContent = res.experience_years ?? payload.experience_years;
+    }catch(_){ toast('Ошибка сохранения'); }
   };
+
+  $id('pAvatarFile').addEventListener('change', async (ev)=>{
+    const file = ev.target.files?.[0];
+    if (!file) return;
+    try{
+      const fd = new FormData();
+      fd.append('telegram_id', CURRENT_TG_ID);
+      fd.append('avatar', file);
+      const r = await fetch('/api/masters/upload_avatar/', { method:'POST', body: fd });
+      if (!r.ok) throw new Error('upload fail');
+      const data = await r.json();
+      toast('Аватар обновлён');
+      // перерисуем профиль, чтобы подтянулся новый avatar_url
+      showProfile();
+    }catch(_){ toast('Не удалось загрузить фото'); }
+  });
 }
 
 // ==== Мои услуги (с модалками создания услуги и добавления слотов) ====

@@ -1,5 +1,6 @@
 import logging
 import requests
+import os
 from calendar import monthrange
 from datetime import datetime as dt, date as ddate, time as dtime, timedelta
 from django.conf import settings
@@ -14,7 +15,9 @@ from .serializers import (
     MasterSerializer, ServiceSerializer, SlotSerializer, BookingSerializer
 )
 from django.utils.dateparse import parse_date
-
+from django.core.files.base import ContentFile
+from urllib.parse import urljoin
+from django.core.files.storage import default_storage
 
 CANCEL_LOCK_MINUTES = 30  # запрет отмены позднее чем за 30 минут
 
@@ -84,6 +87,34 @@ class MasterViewSet(viewsets.ModelViewSet):
         ser.is_valid(raise_exception=True)
         ser.save()
         return Response(ser.data)
+
+    @action(detail=False, methods=['post'])
+    def upload_avatar(self, request):
+        tg = request.data.get('telegram_id')
+        f = request.FILES.get('avatar')
+        if not tg or not f:
+            return Response({'detail': 'telegram_id и avatar обязательны'}, status=400)
+
+        m = Master.objects.filter(telegram_id=tg).first()
+        if not m:
+            return Response({'detail': 'master not found'}, status=404)
+
+        subdir = os.path.join('avatars', str(tg))
+        filename = default_storage.save(os.path.join(subdir, f.name), ContentFile(f.read()))
+        media_url = getattr(settings, 'MEDIA_URL', '/media/')
+        m.avatar_url = urljoin(media_url, filename.replace('\\', '/'))
+        m.save(update_fields=['avatar_url'])
+        return Response({'avatar_url': m.avatar_url})
+
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        tg = request.query_params.get('telegram_id')
+        m = Master.objects.filter(telegram_id=tg).first()
+        if not m:
+            return Response({'total_bookings': 0, 'experience_years': 0})
+
+        total = Booking.objects.filter(slot__service__master=m).count()
+        return Response({'total_bookings': total, 'experience_years': m.experience_years})
 
 
 class ServiceViewSet(viewsets.ModelViewSet):

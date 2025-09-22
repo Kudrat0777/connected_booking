@@ -6,6 +6,8 @@ class Master(models.Model):
     bio = models.TextField(blank=True, default="")
     phone = models.CharField(max_length=32, blank=True, default="")
     avatar_url = models.URLField(blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    experience_years = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return self.name

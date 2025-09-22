@@ -4,7 +4,9 @@ from .models import Master, Service, Slot, Booking
 class MasterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Master
-        fields = ("id","name","telegram_id","bio","phone","avatar_url")
+        fields = ("id","name","telegram_id","bio","phone","avatar_url",
+                  "email","experience_years"
+                  )
 
 class ServiceSerializer(serializers.ModelSerializer):
     master = MasterSerializer(read_only=True)
