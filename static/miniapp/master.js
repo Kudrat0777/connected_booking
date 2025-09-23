@@ -811,83 +811,6 @@ async function showServicesManager(){
   };
 }
 
-async function showSlotsManager(serviceId){
-  const slots = await api(`/api/slots/for_service/?service=${serviceId}`);
-
-  $content.innerHTML = `
-    ${headerHTML('Слоты услуги')}
-    <div class="cb-wrap">
-      <div class="booking-item">
-        <label>Добавить одиночный слот</label>
-        <input id="oneDT" class="input" type="datetime-local">
-        <button id="oneAdd" class="tg-btn" style="margin-top:8px">Добавить</button>
-      </div>
-
-      <div class="booking-item" style="margin-top:10px">
-        <label><b>Массовая генерация</b></label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-          <input id="gStart" type="date" class="input">
-          <input id="gEnd"   type="date" class="input">
-          <input id="gTimes" type="text" class="input" placeholder="например: 10:00, 11:30, 15:00">
-        </div>
-        <div style="margin-top:6px">
-          <label>Дни недели:</label>
-          <label><input type="checkbox" class="gDay" value="0" checked> Пн</label>
-          <label><input type="checkbox" class="gDay" value="1" checked> Вт</label>
-          <label><input type="checkbox" class="gDay" value="2" checked> Ср</label>
-          <label><input type="checkbox" class="gDay" value="3" checked> Чт</label>
-          <label><input type="checkbox" class="gDay" value="4" checked> Пт</label>
-          <label><input type="checkbox" class="gDay" value="5" checked> Сб</label>
-          <label><input type="checkbox" class="gDay" value="6" checked> Вс</label>
-        </div>
-        <button id="gRun" class="tg-btn" style="margin-top:8px">Сгенерировать</button>
-      </div>
-
-      <h3 style="color:#fff;margin:12px 0 8px">Слоты</h3>
-      <div id="slotList"></div>
-    </div>`;
-  mountHeaderBack();
-
-  $id('oneAdd').onclick = async ()=>{
-    const v = $id('oneDT').value; if(!v) return toast('Укажи дату/время');
-    await api('/api/slots/', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ service: serviceId, time: new Date(v).toISOString() })
-    });
-    toast('Слот добавлен'); showSlotsManager(serviceId);
-  };
-
-  $id('gRun').onclick = async ()=>{
-    const start = $id('gStart').value, end = $id('gEnd').value, timesStr = $id('gTimes').value;
-    if (!start || !end || !timesStr) return toast('Заполни все поля генерации');
-    const times = timesStr.split(',').map(s=>s.trim()).filter(Boolean);
-    const weekdays = Array.from(document.querySelectorAll('.gDay:checked')).map(i=>Number(i.value));
-    await api('/api/slots/bulk_generate/', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ service: serviceId, start_date:start, end_date:end, times, weekdays })
-    });
-    toast('Слоты созданы'); showSlotsManager(serviceId);
-  };
-
-  const list = $id('slotList');
-  if (!slots.length){ list.innerHTML = '<div class="booking-item">Слоты не найдены</div>'; return; }
-  list.innerHTML = '';
-  slots.forEach(s=>{
-    const el = document.createElement('div'); el.className = 'booking-item';
-    el.innerHTML = `
-      ${new Date(s.time).toLocaleString()} • ${s.is_booked ? 'занят' : 'свободен'}
-      ${s.is_booked ? '' : `<button class="backbtn" data-id="${s.id}" style="float:right">Удалить</button>`}
-    `;
-    list.appendChild(el);
-  });
-  list.querySelectorAll('[data-id]').forEach(b=>{
-    b.onclick = async ()=>{
-      await api(`/api/slots/${b.dataset.id}/`, { method:'DELETE' });
-      toast('Удалено'); showSlotsManager(serviceId);
-    };
-  });
-}
-
 async function showCalendar(year, month){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
   const now = new Date();
@@ -897,94 +820,213 @@ async function showCalendar(year, month){
   const data = await api(`/api/slots/calendar/?telegram_id=${CURRENT_TG_ID}&year=${year}&month=${month}`);
   const days = data.days || [];
 
+  const dayByIso = Object.fromEntries(days.map(d => [d.date, d]));
+
   $content.innerHTML = `
     ${headerHTML('Календарь')}
     <div class="cb-wrap">
-      <div class="booking-item" style="display:flex;gap:8px;align-items:center;justify-content:space-between">
-        <button id="calPrev" class="backbtn">←</button>
-        <div><b>${year}</b> • <b>${String(month).padStart(2,'0')}</b></div>
-        <button id="calNext" class="backbtn">→</button>
-      </div>
-      <div id="grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px"></div>
-      <div id="dayBox" class="booking-item" style="margin-top:12px; display:none"></div>
-    </div>`;
-  mountHeaderBack();
-  $id('calPrev').onclick = ()=>{ let y=year, m=month-1; if(m<1){m=12;y--;} showCalendar(y,m); };
-  $id('calNext').onclick = ()=>{ let y=year, m=month+1; if(m>12){m=1;y++;} showCalendar(y,m); };
-
-  const grid = $id('grid'); grid.innerHTML='';
-  days.forEach(d=>{
-    const el = document.createElement('div');
-    el.className = 'booking-item';
-    el.innerHTML = `<div style="font-weight:700">${d.date.slice(-2)}</div>
-                    <div style="font-size:12px;margin-top:4px">🟢 ${d.free} &nbsp; 🔴 ${d.busy}</div>`;
-    el.style.cursor='pointer';
-    el.onclick = ()=> showDay(d);
-    grid.appendChild(el);
-  });
-
-  async function showDay(d){
-    const box = $id('dayBox'); box.style.display='block';
-    const iso = d.date; const pretty = iso.split('-').reverse().join('.');
-
-    box.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h3 style="margin:0;color:#fff">День: ${pretty}</h3>
-        <button id="dayHide" class="backbtn">Скрыть</button>
-      </div>
-      <div class="booking-item" style="margin-top:8px">
-        <label>Добавить слот</label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-          <select id="svcSel" class="input" style="min-width:160px"></select>
-          <input id="timeInp" class="input" type="time" value="10:00">
-          <button id="addSlot" class="tg-btn">Добавить</button>
+      <div class="cal-nav">
+        <div class="cal-nav__row">
+          <button id="calPrev" class="cal-nav__btn">←</button>
+          <div class="cal-nav__title" id="calTitle"></div>
+          <button id="calNext" class="cal-nav__btn">→</button>
         </div>
       </div>
-      <div id="slotsList" style="margin-top:8px"></div>`;
-    $id('dayHide').onclick = ()=>{ box.style.display='none'; };
 
-    const services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`);
-    $id('svcSel').innerHTML = services.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+      <div class="cal-card">
+        <div class="cal-week">
+          <div class="cal-week__cell">Пн</div>
+          <div class="cal-week__cell">Вт</div>
+          <div class="cal-week__cell">Ср</div>
+          <div class="cal-week__cell">Чт</div>
+          <div class="cal-week__cell">Пт</div>
+          <div class="cal-week__cell">Сб</div>
+          <div class="cal-week__cell">Вс</div>
+        </div>
+        <div id="calGrid" class="cal-grid"></div>
+        <div class="cal-legend">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="cal-dot" style="background:#2f7de7"></span><span>Сегодня</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="cal-dot" style="background:#49d27a"></span><span>Есть слоты</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    renderSlots(d.slots);
+    <div id="dayModal" class="m-modal">
+      <div class="m-card">
+        <div class="m-head">
+          <div class="m-title">Управление слотами</div>
+          <button class="m-close" id="mClose">×</button>
+        </div>
 
-    $id('addSlot').onclick = async ()=>{
-      const svc = Number($id('svcSel').value);
-      const timeHHMM = $id('timeInp').value;
-      if (!svc || !timeHHMM) return toast('Заполни услугу и время');
-      await api('/api/slots/', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ service: svc, time: new Date(`${iso}T${timeHHMM}:00`).toISOString() })
-      });
-      toast('Слот добавлен'); showCalendar(year, month);
-      setTimeout(async ()=>{
-        const fresh = await api(`/api/slots/calendar/?telegram_id=${CURRENT_TG_ID}&year=${year}&month=${month}`);
-        const nd = (fresh.days||[]).find(x=>x.date===iso) || {slots:[]};
-        showDay(nd);
-      }, 60);
-    };
+        <div class="m-body">
+          <div class="m-datebox">
+            <div id="mDateNum" class="m-date-num">15</div>
+            <div id="mDateTxt" class="m-date-txt">15 декабря 2024, понедельник</div>
+          </div>
+        </div>
+
+        <div class="m-body">
+          <label class="m-label">⏰ <b>Добавить слот</b></label>
+          <div class="m-form">
+            <div class="row">
+              <input id="mTime" type="time" class="m-input">
+              <select id="mService" class="m-select">
+                <option value="">Загрузка услуг…</option>
+              </select>
+            </div>
+            <button id="mAdd" class="m-btn">Добавить слот</button>
+          </div>
+        </div>
+
+        <div class="m-body">
+          <label class="m-label">📅 <b>Слоты на этот день</b></label>
+          <div id="mList" class="m-list"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  mountHeaderBack();
+
+  const RU_MONTHS = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+  const title = `${RU_MONTHS[month-1][0].toUpperCase()+RU_MONTHS[month-1].slice(1)} ${year}`;
+  document.getElementById('calTitle').textContent = title;
+
+  document.getElementById('calPrev').onclick = ()=>{ let y=year, m=month-1; if(m<1){m=12;y--;} showCalendar(y,m); };
+  document.getElementById('calNext').onclick = ()=>{ let y=year, m=month+1; if(m>12){m=1;y++;} showCalendar(y,m); };
+
+  const grid = document.getElementById('calGrid');
+  renderGrid(grid, year, month, dayByIso);
+
+  const modal     = document.getElementById('dayModal');
+  const mCloseBtn = document.getElementById('mClose');
+  const mTime     = document.getElementById('mTime');
+  const mService  = document.getElementById('mService');
+  const mAdd      = document.getElementById('mAdd');
+  const mList     = document.getElementById('mList');
+  const mDateNum  = document.getElementById('mDateNum');
+  const mDateTxt  = document.getElementById('mDateTxt');
+  let selectedISO = null;
+  let services    = [];
+
+  try{ services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`) || []; }
+  catch(_){ services = []; }
+  mService.innerHTML = `<option value="">Выберите услугу</option>` +
+    services.map(s=> `<option value="${s.id}">${esc(s.name||'Без названия')}</option>`).join('');
+
+  function openModalForDate(iso){
+    selectedISO = iso;
+    const d = new Date(iso+'T00:00:00');
+    const dow = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'][d.getDay()];
+    mDateNum.textContent = String(d.getDate());
+    mDateTxt.textContent = `${d.getDate()} ${RU_MONTHS[d.getMonth()]} ${d.getFullYear()}, ${dow}`;
+
+    renderDaySlots(iso);
+    modal.classList.add('show');
   }
+  function closeModal(){
+    modal.classList.remove('show');
+    selectedISO = null;
+    mTime.value = '';
+    mService.value = '';
+  }
+  mCloseBtn.onclick = closeModal;
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
 
-  function renderSlots(slots){
-    const list = $id('slotsList');
-    if (!slots?.length){ list.innerHTML='<div class="booking-item">Слоты отсутствуют</div>'; return; }
-    list.innerHTML='';
-    slots.sort((a,b)=> new Date(a.time)-new Date(b.time));
-    slots.forEach(s=>{
-      const el = document.createElement('div'); el.className='booking-item';
+  async function renderDaySlots(iso){
+    const day = dayByIso[iso] || {slots:[]};
+    const list = (day.slots||[]).slice().sort((a,b)=> new Date(a.time) - new Date(b.time));
+    if (!list.length){
+      mList.innerHTML = `<div class="m-item"><div class="m-item__info" style="opacity:.75">Слотов нет</div></div>`;
+      return;
+    }
+    mList.innerHTML = '';
+    list.forEach(s=>{
+      const timeStr = new Date(s.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const el = document.createElement('div');
+      el.className = 'm-item';
       el.innerHTML = `
-        ${new Date(s.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
-        • ${esc(s.service)} • ${s.is_booked ? 'занят' : 'свободен'}
-        ${s.is_booked ? '' : `<button class="backbtn" data-id="${s.id}" style="float:right">Удалить</button>`}
+        <div class="m-item__info">${timeStr} • ${esc(s.service||'Услуга')} • ${s.is_booked?'занят':'свободен'}</div>
+        ${s.is_booked ? '' : `<button class="m-del" data-id="${s.id}">Удалить</button>`}
       `;
-      list.appendChild(el);
+      mList.appendChild(el);
     });
-    list.querySelectorAll('[data-id]').forEach(b=>{
-      b.onclick = async ()=>{
-        await api(`/api/slots/${b.dataset.id}/`, {method:'DELETE'});
-        toast('Удалено'); b.closest('.booking-item')?.remove();
+    mList.querySelectorAll('.m-del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        try{
+          await api(`/api/slots/${btn.dataset.id}/`, {method:'DELETE'});
+          toast('Удалено');
+          // обновим месяц и модалку
+          const fresh = await api(`/api/slots/calendar/?telegram_id=${CURRENT_TG_ID}&year=${year}&month=${month}`);
+          fresh.days?.forEach(d=> dayByIso[d.date]=d);
+          renderGrid(grid, year, month, dayByIso);
+          renderDaySlots(iso);
+        }catch(_){ toast('Ошибка удаления'); }
       };
     });
+  }
+
+  mAdd.onclick = async ()=>{
+    if (!selectedISO) return;
+    const svc  = Number(mService.value||0);
+    const hhmm = (mTime.value||'').trim();
+    if (!svc || !hhmm){ toast('Укажите время и услугу'); return; }
+    try{
+      await api('/api/slots/', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          service_id: svc,
+          time: new Date(`${selectedISO}T${hhmm}:00`).toISOString()
+        })
+      });
+      toast('Слот добавлен');
+      const fresh = await api(`/api/slots/calendar/?telegram_id=${CURRENT_TG_ID}&year=${year}&month=${month}`);
+      fresh.days?.forEach(d=> dayByIso[d.date]=d);
+      renderGrid(grid, year, month, dayByIso);
+      renderDaySlots(selectedISO);
+      mTime.value=''; mService.value='';
+    }catch(_){ toast('Ошибка создания'); }
+  };
+
+  function renderGrid(container, y, m, byIso){
+    container.innerHTML = '';
+    const first = new Date(y, m-1, 1);
+    const last  = new Date(y, m, 0);
+    const daysInMonth = last.getDate();
+    // monday-first offset
+    let start = first.getDay() - 1; if (start < 0) start = 6;
+
+    const prevLast = new Date(y, m-1, 0).getDate();
+    for (let i = start-1; i >= 0; i--){
+      const d = document.createElement('div');
+      d.className = 'day-cell day--other';
+      d.textContent = String(prevLast - i);
+      container.appendChild(d);
+    }
+
+    const todayKey = new Date().toISOString().slice(0,10);
+    for (let day=1; day<=daysInMonth; day++){
+      const iso = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const d = document.createElement('div');
+      const has = (byIso[iso]?.free || 0) + (byIso[iso]?.busy || 0) > 0;
+      const isToday = (iso===todayKey);
+      d.className = `day-cell${isToday?' day--today':''}${has?' day--has':''}`;
+      d.textContent = String(day);
+      d.onclick = ()=> openModalForDate(iso);
+      container.appendChild(d);
+    }
+
+    const rem = 42 - container.children.length;
+    for (let i=1; i<=rem; i++){
+      const d = document.createElement('div');
+      d.className = 'day-cell day--other';
+      d.textContent = String(i);
+      container.appendChild(d);
+    }
   }
 }
 

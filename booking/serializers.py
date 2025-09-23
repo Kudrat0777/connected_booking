@@ -17,6 +17,9 @@ class ServiceSerializer(serializers.ModelSerializer):
 
 class SlotSerializer(serializers.ModelSerializer):
     service = ServiceSerializer(read_only=True)
+    service_id = serializers.PrimaryKeyRelatedField(
+        queryset=Service.objects.all(), source='service', write_only=True
+    )
 
     class Meta:
         model = Slot
