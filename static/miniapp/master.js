@@ -276,133 +276,197 @@ async function showBookings(period='today', status=''){
 async function showManualBooking(){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
 
+  (function injectNBStyles(){
+    if (document.getElementById('nb-styles')) return;
+    const css = `
+    .nb-wrap{ display:grid; gap:14px; }
+    .nb-card{
+      background:#121a24; border:1px solid #1f2a36; border-radius:18px; padding:16px;
+    }
+    .nb-section-head{ display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+    .nb-icon{ width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+      background:#0f1720;border:1px solid #1f2a36;font-size:22px; }
+    .nb-title{ font-weight:800; color:#e6edf3; font-size:18px; line-height:1.1; }
+    .nb-sub{ color:#9fb0c0; font-size:13px; margin-top:2px; }
+
+    .nb-grid{ display:grid; gap:10px; }
+    .nb-field{ display:grid; gap:6px; }
+    .nb-label{ color:#9fb0c0; font-size:13px; }
+
+    .nb-input{
+      background:#0f1720; border:1px solid #1f2a36; color:#e6edf3; border-radius:12px;
+      height:44px; padding:0 14px; width:100%;
+    }
+    .nb-input::placeholder{ color:#7e91a3; }
+    .nb-input:focus{ outline:none; border-color:#2f7de7; box-shadow:0 0 0 3px rgba(47,125,231,.25); }
+
+    select.nb-input{ appearance:none; -webkit-appearance:none; background-image:linear-gradient(transparent,transparent); }
+
+    .nb-slots.empty{ display:flex; align-items:center; justify-content:center; min-height:88px; }
+    .nb-empty{ color:#9fb0c0; font-size:15px; }
+    .nb-loading{ color:#9fb0c0; }
+
+    .nb-slotlist{ display:flex; flex-wrap:wrap; gap:8px; }
+    .nb-slot{
+      display:flex; flex-direction:column; gap:4px; align-items:flex-start;
+      min-width:110px; padding:10px 12px; border-radius:12px; background:#0f1720; border:1px solid #1f2a36;
+      cursor:pointer; transition:transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .nb-slot:hover{ transform:translateY(-1px); border-color:#2f7de7; }
+    .nb-slot.active{ background:#112032; border-color:#2f7de7; }
+    .nb-slot-time{ color:#e6edf3; font-weight:700; }
+    .nb-slot-date{ color:#9fb0c0; font-size:12px; }
+
+    .nb-actions{ position:sticky; bottom:0; padding-top:6px; display:flex; gap:10px;
+      background:linear-gradient(to bottom, rgba(11,18,26,0), #0b121a 40%); }
+    .nb-btn{ flex:1; height:44px; border-radius:12px; font-weight:600; border:1px solid transparent; }
+    .nb-btn-ghost{ background:#1b2733; color:#e6edf3; border-color:#1f2a36; }
+    .nb-btn-ghost:hover{ filter:brightness(1.05); }
+    .nb-btn-primary{ background:#2f7de7; color:#fff; }
+    .nb-btn-primary:hover{ background:#2568d6; }
+    .nb-btn-primary:disabled{ background:#2b3440; color:#96a6b6; cursor:not-allowed; }
+    `;
+    const tag = document.createElement('style');
+    tag.id = 'nb-styles';
+    tag.textContent = css;
+    document.head.appendChild(tag);
+  })();
+
   let services = [];
   try { services = await api(`/api/services/my/?telegram_id=${CURRENT_TG_ID}`); } catch(_){ services = []; }
 
   $content.innerHTML = `
     ${headerHTML('Новая запись')}
-    <div class="cb-wrap">
-      <div class="booking-item">
-        <div style="display:grid;gap:10px">
-          <div>
-            <label>Имя клиента</label>
-            <input id="nbFirst" class="input" type="text" placeholder="Иван">
-          </div>
-          <div>
-            <label>Фамилия клиента</label>
-            <input id="nbLast" class="input" type="text" placeholder="Иванов">
-          </div>
-          <div>
-            <label>Категория (услуга)</label>
-            <select id="nbService" class="input">
-              ${services.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}
-            </select>
-          </div>
+    <div class="cb-wrap nb-wrap">
 
-          <div id="nbSlotWrap">
-            <label>Свободный слот</label>
-            <select id="nbSlot" class="input"><option value="">Загрузка…</option></select>
-            <div id="nbNoSlots" style="display:none;opacity:.8;margin-top:6px">
-              Нет свободных слотов. Можно <button id="nbAddOneBtn" class="backbtn">добавить слот</button>.
-            </div>
-          </div>
-
-          <div id="nbAddOnePanel" class="booking-item" style="display:none">
-            <b>Добавить одиночный слот</b>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-              <input id="nbOneDT" class="input" type="datetime-local">
-              <button id="nbOneAdd" class="tg-btn">Добавить слот</button>
-              <button id="nbOneCancel" class="backbtn">Отмена</button>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-            <button id="nbCreate" class="tg-btn">Создать запись</button>
-            <button id="nbCancel" class="backbtn">Отмена</button>
+      <div class="nb-card">
+        <div class="nb-section-head">
+          <div class="nb-icon">👤</div>
+          <div>
+            <div class="nb-title">Данные клиента</div>
+            <div class="nb-sub">Заполните информацию о клиенте</div>
           </div>
         </div>
+
+        <div class="nb-grid">
+          <label class="nb-field">
+            <div class="nb-label">Имя клиента *</div>
+            <input id="nbFirst" class="nb-input" type="text" placeholder="Иван">
+          </label>
+
+          <label class="nb-field">
+            <div class="nb-label">Фамилия клиента *</div>
+            <input id="nbLast" class="nb-input" type="text" placeholder="Иванов">
+          </label>
+
+          <label class="nb-field">
+            <div class="nb-label">Телефон (опционально)</div>
+            <input id="nbPhone" class="nb-input" type="tel" placeholder="+7 (999) 123-45-67">
+          </label>
+
+          <label class="nb-field">
+            <div class="nb-label">Категория (услуга) *</div>
+            <select id="nbService" class="nb-input">
+              <option value="">Выберите услугу</option>
+              ${services.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="nb-card">
+        <div class="nb-section-head">
+          <div class="nb-icon">📅</div>
+          <div>
+            <div class="nb-title">Выбор времени</div>
+            <div class="nb-sub">Выберите свободный слот</div>
+          </div>
+        </div>
+
+        <div id="nbSlots" class="nb-slots empty">
+          <div class="nb-empty">Сначала выберите услугу</div>
+        </div>
+      </div>
+
+      <div class="nb-actions">
+        <button id="nbCancel" class="nb-btn nb-btn-ghost">Отмена</button>
+        <button id="nbCreate" class="nb-btn nb-btn-primary" disabled>Создать запись</button>
       </div>
     </div>
   `;
   mountHeaderBack();
 
-  const $svc = $id('nbService');
-  const $slot = $id('nbSlot');
-  const $no  = $id('nbNoSlots');
-  const $addPanel = $id('nbAddOnePanel');
+  let selectedSlotId = null;
 
-  // Загрузка свободных слотов по услуге
   async function loadFreeSlots(serviceId){
-    $slot.innerHTML = `<option value="">Загрузка…</option>`;
-    $no.style.display = 'none';
+    const box = $id('nbSlots');
+    selectedSlotId = null;
+    toggleCreateBtn();
+
+    if (!serviceId){
+      box.classList.add('empty');
+      box.innerHTML = `<div class="nb-empty">Сначала выберите услугу</div>`;
+      return;
+    }
+
+    box.classList.remove('empty');
+    box.innerHTML = `<div class="nb-loading">Загрузка слотов…</div>`;
 
     let slots = [];
     try { slots = await api(`/api/slots/?service=${serviceId}`); } catch(_){ slots = []; }
-    const free = (slots||[]).filter(s=>!s.is_booked);
+    const free = (slots||[]).filter(s=>!s.is_booked).sort((a,b)=> new Date(a.time)-new Date(b.time));
 
     if (!free.length){
-      $slot.innerHTML = `<option value="">Нет свободных слотов</option>`;
-      $no.style.display = 'block';
-    } else {
-      $slot.innerHTML = free
-        .sort((a,b)=> new Date(a.time)-new Date(b.time))
-        .map(s=>`<option value="${s.id}">${new Date(s.time).toLocaleString()}</option>`)
-        .join('');
+      box.classList.add('empty');
+      box.innerHTML = `<div class="nb-empty">Нет свободных слотов для выбранной услуги</div>`;
+      return;
     }
+
+    box.innerHTML = `<div class="nb-slotlist"></div>`;
+    const list = box.firstElementChild;
+    free.forEach(s=>{
+      const el = document.createElement('button');
+      el.className = 'nb-slot';
+      el.dataset.id = s.id;
+      el.innerHTML = `
+        <span class="nb-slot-time">${new Date(s.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+        <span class="nb-slot-date">${new Date(s.time).toLocaleDateString()}</span>
+      `;
+      el.onclick = ()=>{
+        selectedSlotId = Number(s.id);
+        list.querySelectorAll('.nb-slot').forEach(x=>x.classList.remove('active'));
+        el.classList.add('active');
+        toggleCreateBtn();
+      };
+      list.appendChild(el);
+    });
   }
 
-  // первичная загрузка
-  if (services.length){
-    loadFreeSlots(services[0].id);
+  function toggleCreateBtn(){
+    const ok = Boolean(
+      $id('nbFirst').value.trim() &&
+      $id('nbLast').value.trim() &&
+      $id('nbService').value &&
+      selectedSlotId
+    );
+    $id('nbCreate').disabled = !ok;
   }
 
-  $svc.onchange = ()=> loadFreeSlots(Number($svc.value));
+  ['nbFirst','nbLast'].forEach(id=> $id(id).addEventListener('input', toggleCreateBtn));
+  $id('nbService').onchange = (e)=> loadFreeSlots(Number(e.target.value));
 
-  $id('nbAddOneBtn')?.addEventListener('click', ()=> { $addPanel.style.display='block'; });
-  $id('nbOneCancel')?.addEventListener('click', ()=> { $addPanel.style.display='none'; });
-
-  // добавить один слот
-  $id('nbOneAdd').onclick = async ()=>{
-    const dt = $id('nbOneDT').value;
-    const sid = Number($svc.value);
-    if (!sid){ toast('Выберите услугу'); return; }
-    if (!dt){ toast('Укажите дату и время'); return; }
-
-    try{
-      await api('/api/slots/', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ service: sid, time: new Date(dt).toISOString() })
-      });
-      toast('Слот добавлен');
-      $addPanel.style.display='none';
-      await loadFreeSlots(sid);
-    }catch(_){ toast('Ошибка добавления слота'); }
-  };
-
-  // создать запись
   $id('nbCreate').onclick = async ()=>{
-    const first = $id('nbFirst').value.trim();
-    const last  = $id('nbLast').value.trim();
-    const name  = (first || last) ? `${first} ${last}`.trim() : '';
-    const slotId= Number($slot.value);
-
-    if (!name){ toast('Введите имя клиента'); return; }
-    if (!slotId){ toast('Выберите слот'); return; }
+    const name  = `${$id('nbFirst').value.trim()} ${$id('nbLast').value.trim()}`.trim();
+    const phone = $id('nbPhone').value.trim();
 
     try{
       await api('/api/bookings/', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          slot_id: slotId,
-          name: name,
-          // telegram_id и прочее не передаём — это «ручная» запись
-        })
+        body: JSON.stringify({ slot_id: selectedSlotId, name, phone })
       });
       toast('Запись создана');
-      navigate(()=> showBookings('today','')); // вернёмся к списку
-    }catch(e){
-      toast('Не удалось создать запись');
-    }
+      navigate(()=> showBookings('today',''));
+    }catch(_){ toast('Не удалось создать запись'); }
   };
 
   $id('nbCancel').onclick = goBackOrHome;
@@ -565,7 +629,6 @@ async function showProfile(){
   });
 }
 
-// ==== Мои услуги (с модалками создания услуги и добавления слотов) ====
 async function showServicesManager(){
   if (!CURRENT_TG_ID){ toast('Открой через Telegram'); return; }
 
@@ -592,7 +655,6 @@ async function showServicesManager(){
       </div>
     </div>
 
-    <!-- Модалка: новая услуга -->
     <div id="addServiceModal" class="modal">
       <div class="modal-content">
         <div class="modal-title">Новая услуга</div>
@@ -615,7 +677,6 @@ async function showServicesManager(){
       </div>
     </div>
 
-    <!-- Модалка: добавить слот -->
     <div id="addSlotModal" class="modal">
       <div class="modal-content">
         <div class="modal-title">Добавить слот</div>
@@ -705,7 +766,6 @@ async function showServicesManager(){
       svcList.appendChild(card);
     });
 
-    // удаление услуги (если у тебя есть эндпоинт DELETE /api/services/{id}/)
     svcList.querySelectorAll('[data-del]').forEach(btn=>{
       btn.onclick = async ()=>{
         const id = Number(btn.dataset.del);
@@ -722,7 +782,6 @@ async function showServicesManager(){
       };
     });
 
-    // открыть модалку добавления слота
     svcList.querySelectorAll('[data-addslot]').forEach(btn=>{
       btn.onclick = ()=>{
         currentServiceId = Number(btn.dataset.addslot);
@@ -733,7 +792,6 @@ async function showServicesManager(){
 
   render();
 
-  // ====== модалки ======
   function openModal(m){ m?.classList.add('active'); }
   function closeModal(m){ m?.classList.remove('active'); }
 
@@ -741,12 +799,10 @@ async function showServicesManager(){
   document.getElementById('mSvcCancel').onclick = ()=> closeModal(addServiceModal);
   document.getElementById('mSlotCancel').onclick = ()=> closeModal(addSlotModal);
 
-  // клик вне контента — закрыть
   [addServiceModal, addSlotModal].forEach(m=>{
     m.addEventListener('click', (e)=>{ if(e.target===m) closeModal(m); });
   });
 
-  // создать услугу
   document.getElementById('mSvcCreate').onclick = async ()=>{
     const name = document.getElementById('mSvcName').value.trim();
     const price = Number(document.getElementById('mSvcPrice').value || 0);
@@ -766,7 +822,6 @@ async function showServicesManager(){
     render();
   };
 
-  // добавить слоты
   document.getElementById('mSlotAdd').onclick = async ()=>{
     if (!currentServiceId) return;
     const time = document.getElementById('mSlotTime').value;
@@ -997,7 +1052,6 @@ async function showCalendar(year, month){
     const first = new Date(y, m-1, 1);
     const last  = new Date(y, m, 0);
     const daysInMonth = last.getDate();
-    // monday-first offset
     let start = first.getDay() - 1; if (start < 0) start = 6;
 
     const prevLast = new Date(y, m-1, 0).getDate();
