@@ -10,11 +10,10 @@ class MasterSerializer(serializers.ModelSerializer):
     reviews_count = serializers.SerializerMethodField()
 
     def get_rating(self, obj):
-        agg = obj.reviews.aggregate(avg=Avg('rating'))
-        return float(agg['avg'] or 0)
+        return round(obj.rating_value or 0.0, 1)
 
     def get_reviews_count(self, obj):
-        return obj.reviews.count()
+        return obj.reviews_count
 
     class Meta:
         model = Master
@@ -25,6 +24,11 @@ class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = "__all__"
+
+class ServiceShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = ["id", "name", "price", "duration", "description"]
 
 class SlotSerializer(serializers.ModelSerializer):
     service = ServiceSerializer(read_only=True)
@@ -47,13 +51,6 @@ class BookingSerializer(serializers.ModelSerializer):
             'telegram_id', 'username', 'photo_url', 'status'
         )
 
-# 👇 «Короткий» сервис — только существующие поля,
-#    но фронт может безопасно подставить 0/«— ₽»
-class ServiceShortSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Service
-        fields = ["id", "name"]
-
 class EducationSerializer(serializers.ModelSerializer):
     class Meta:
         model = MasterEducation
@@ -64,12 +61,10 @@ class SpecSerializer(serializers.ModelSerializer):
         model = MasterSpecialization
         fields = ["name"]
 
-# Переименуем image_url → image для фронта
 class PortfolioSerializer(serializers.ModelSerializer):
-    image = serializers.URLField(source="image_url")
     class Meta:
         model = PortfolioItem
-        fields = ["image", "caption", "created_at"]
+        fields = ["image_url", "caption", "created_at"]
 
 class WorkingHourSerializer(serializers.ModelSerializer):
     class Meta:
@@ -96,15 +91,15 @@ class MasterPublicSerializer(serializers.ModelSerializer):
         return ReviewSerializer(qs, many=True).data
 
     def get_rating(self, obj):
-        agg = obj.reviews.aggregate(avg=Avg('rating'))
-        return float(agg['avg'] or 0)
+        return round(obj.rating_value or 0.0, 1)
 
     def get_reviews_count(self, obj):
-        return obj.reviews.count()
+        return obj.reviews_count
 
     class Meta:
         model = Master
         fields = [
-            "id","name","avatar_url","bio","experience_years","rating","reviews_count",
+            "id","name","avatar_url","bio","experience_years",
+            "rating","reviews_count",
             "services","education","specializations","portfolio","working_hours","reviews"
         ]

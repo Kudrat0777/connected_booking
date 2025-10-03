@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models import Avg, Count
+
 
 class Master(models.Model):
     name = models.CharField(max_length=100)
@@ -12,9 +14,18 @@ class Master(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def rating_value(self):
+        return self.reviews.aggregate(v=Avg("rating"))["v"] or 0.0
+
+    @property
+    def reviews_count(self):
+        return self.reviews.aggregate(c=Count("id"))["c"] or 0
+
+
 class MasterEducation(models.Model):
     master = models.ForeignKey(Master, on_delete=models.CASCADE, related_name="education")
-    title = models.CharField(max_length=255)  # "Московский колледж красоты (2018)"
+    title = models.CharField(max_length=255)  # "Беларусский колледж красоты (2018)"
 
     def __str__(self):
         return self.title
@@ -51,6 +62,9 @@ class Review(models.Model):
 class Service(models.Model):
     name = models.CharField(max_length=100)
     master = models.ForeignKey(Master, on_delete=models.CASCADE)
+    price = models.PositiveIntegerField(null=True, blank=True, default=None)
+    duration = models.PositiveIntegerField(null=True, blank=True, help_text="минуты")
+    description = models.TextField(blank=True, default="")
 
     def __str__(self):
         return f"{self.name} — {self.master.name}"
@@ -63,7 +77,6 @@ class Slot(models.Model):
     class Meta:
         unique_together = ('service', 'time')  # не создаст дубликаты
         indexes = [models.Index(fields=['time'])]
-
 
     def __str__(self):
         return f"{self.service} @ {self.time:%d.%m.%Y %H:%M}"

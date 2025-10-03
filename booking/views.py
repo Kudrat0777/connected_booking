@@ -3,22 +3,27 @@ import requests
 import os
 from calendar import monthrange
 from datetime import datetime as dt, date as ddate, time as dtime, timedelta
+
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view
-from rest_framework.response import Response
-from .models import Master, Service, PortfolioItem, Review, WorkingHour, Slot, Booking
-from .serializers import (
-    MasterSerializer, ServiceShortSerializer, PortfolioSerializer,
-    ReviewSerializer, WorkingHourSerializer, SlotSerializer, ServiceSerializer, BookingSerializer
-)
-from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
 from django.core.files.base import ContentFile
-from urllib.parse import urljoin
 from django.core.files.storage import default_storage
+from urllib.parse import urljoin
+
+from rest_framework import viewsets, status, mixins
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from .models import (
+    Master, Service, PortfolioItem, Review, WorkingHour, Slot, Booking
+)
+from .serializers import (
+    MasterSerializer, MasterPublicSerializer,
+    ServiceShortSerializer, PortfolioSerializer, ReviewSerializer,
+    WorkingHourSerializer, SlotSerializer, ServiceSerializer, BookingSerializer
+)
 
 CANCEL_LOCK_MINUTES = 30  # запрет отмены позднее чем за 30 минут
 
@@ -46,6 +51,11 @@ def send_telegram_message(chat_id: int, text: str, parse_mode="HTML") -> bool:
 class MasterViewSet(viewsets.ModelViewSet):
     queryset = Master.objects.all()
     serializer_class = MasterSerializer
+
+    # детальная страница мастера — отдаём расширенный публичный профиль
+    def retrieve(self, request, *args, **kwargs):
+        self.serializer_class = MasterPublicSerializer
+        return super().retrieve(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'])
     def by_telegram(self, request):
@@ -89,6 +99,7 @@ class MasterViewSet(viewsets.ModelViewSet):
         ser.save()
         return Response(ser.data)
 
+    # POST /api/masters/upload_avatar/
     @action(detail=False, methods=['post'])
     def upload_avatar(self, request):
         tg = request.data.get('telegram_id')
@@ -107,6 +118,7 @@ class MasterViewSet(viewsets.ModelViewSet):
         m.save(update_fields=['avatar_url'])
         return Response({'avatar_url': m.avatar_url})
 
+    # GET /api/masters/stats/?telegram_id=...
     @action(detail=False, methods=['get'])
     def stats(self, request):
         tg = request.query_params.get('telegram_id')
@@ -117,17 +129,36 @@ class MasterViewSet(viewsets.ModelViewSet):
         total = Booking.objects.filter(slot__service__master=m).count()
         return Response({'total_bookings': total, 'experience_years': m.experience_years})
 
+    # GET /api/masters/<id>/work_hours/
+    @action(detail=True, methods=['get'])
+    def work_hours(self, request, pk=None):
+        DAYS_RU = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
+        qs = WorkingHour.objects.filter(master_id=pk).order_by("weekday")
+        raw = WorkingHourSerializer(qs, many=True).data
+        out = []
+        for r in raw:
+            w = r["weekday"]
+            out.append({
+                "weekday": w,
+                "day_ru": DAYS_RU[w] if 0 <= w <= 6 else "",
+                "open": (r["start"] or "")[:5] if r["start"] else "",
+                "close": (r["end"] or "")[:5] if r["end"] else "",
+                "is_closed": r.get("is_closed", False),
+            })
+        return Response(out)
+
 
 class ServiceViewSet(viewsets.ModelViewSet):
-    queryset = Service.objects.all()
+    queryset = Service.objects.select_related("master").all()
     serializer_class = ServiceSerializer
 
     def get_queryset(self):
         master = self.request.query_params.get('master')
         if master:
-            return Service.objects.filter(master_id=master)
+            return Service.objects.select_related("master").filter(master_id=master).order_by('name')
         return super().get_queryset()
 
+    # GET /api/services/my/?telegram_id=...
     @action(detail=False, methods=['get'])
     def my(self, request):
         tg = request.query_params.get('telegram_id')
@@ -137,6 +168,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         qs = Service.objects.filter(master=m).order_by('name')
         return Response(ServiceSerializer(qs, many=True).data)
 
+    # POST /api/services/create_by_master/
     @action(detail=False, methods=['post'])
     def create_by_master(self, request):
         tg = request.data.get('telegram_id')
@@ -144,12 +176,15 @@ class ServiceViewSet(viewsets.ModelViewSet):
         m = Master.objects.filter(telegram_id=tg).first()
         if not m or not name:
             return Response({'detail': 'telegram_id и name обязательны'}, status=400)
-        s = Service.objects.create(master=m, name=name)
+        s = Service.objects.create(master=m, name=name,
+                                   price=request.data.get('price') or None,
+                                   duration=request.data.get('duration') or None,
+                                   description=request.data.get('description') or "")
         return Response(ServiceSerializer(s).data, status=201)
 
 
 class SlotViewSet(viewsets.ModelViewSet):
-    queryset = Slot.objects.all()
+    queryset = Slot.objects.select_related("service", "service__master").all()
     serializer_class = SlotSerializer
 
     def get_queryset(self):
@@ -170,16 +205,18 @@ class SlotViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Нельзя удалить занятый слот'}, status=400)
         return super().destroy(request, *args, **kwargs)
 
+    # GET /api/slots/for_service/?service=...
     @action(detail=False, methods=['get'])
     def for_service(self, request):
         service = request.query_params.get('service')
         include_past = request.query_params.get('include_past')
-        qs = Slot.objects.filter(service_id=service)
+        qs = Slot.objects.select_related("service", "service__master").filter(service_id=service)
         if not include_past:
             qs = qs.filter(time__gte=timezone.now())
         qs = qs.order_by('time')
         return Response(SlotSerializer(qs, many=True).data)
 
+    # POST /api/slots/bulk_generate/
     @action(detail=False, methods=['post'])
     def bulk_generate(self, request):
         service_id = request.data.get('service')
@@ -217,12 +254,9 @@ class SlotViewSet(viewsets.ModelViewSet):
 
         return Response({'created': created})
 
+    # GET /api/slots/calendar/?telegram_id=...&year=YYYY&month=M
     @action(detail=False, methods=['get'])
     def calendar(self, request):
-        """
-        GET /api/slots/calendar/?telegram_id=123&year=2025&month=9
-        Возвращает дни месяца с количеством свободных/занятых и слотами по дням.
-        """
         tg = request.query_params.get('telegram_id')
         year = int(request.query_params.get('year') or timezone.now().year)
         month = int(request.query_params.get('month') or timezone.now().month)
@@ -243,44 +277,49 @@ class SlotViewSet(viewsets.ModelViewSet):
 
         days = {}
         for s in qs:
-            d = s.time.date().isoformat()
+            day_key = s.time.date().isoformat()
             item = {
                 'id': s.id,
                 'time': s.time.isoformat(),
                 'service': s.service.name,
                 'is_booked': s.is_booked,
             }
-            if d not in days:
-                days[d] = {'date': d, 'free': 0, 'busy': 0, 'slots': []}
-            days[d]['slots'].append(item)
+            if day_key not in days:
+                days[day_key] = {'date': day_key, 'free': 0, 'busy': 0, 'slots': []}
+            days[day_key]['slots'].append(item)
             if s.is_booked:
-                days[d]['busy'] += 1
+                days[day_key]['busy'] += 1
             else:
-                days[d]['free'] += 1
+                days[day_key]['free'] += 1
 
         for day in range(1, last_day + 1):
-            d = ddate(year, month, day).isoformat()
-            days.setdefault(d, {'date': d, 'free': 0, 'busy': 0, 'slots': []})
+            key = ddate(year, month, day).isoformat()
+            days.setdefault(key, {'date': key, 'free': 0, 'busy': 0, 'slots': []})
 
-        # отсортируем по дате
         out = [days[k] for k in sorted(days.keys())]
         return Response({'year': year, 'month': month, 'days': out})
 
 
 class BookingViewSet(viewsets.ModelViewSet):
-    queryset = Booking.objects.all()
+    queryset = Booking.objects.select_related("slot", "slot__service", "slot__service__master").all()
     serializer_class = BookingSerializer
 
     def get_queryset(self):
         telegram_id = self.request.query_params.get('telegram_id')
         if telegram_id:
-            return Booking.objects.filter(telegram_id=telegram_id).order_by('-created_at')
+            return (Booking.objects
+                    .select_related("slot", "slot__service", "slot__service__master")
+                    .filter(telegram_id=telegram_id)
+                    .order_by('-created_at'))
         return super().get_queryset()
 
     def create(self, request, *args, **kwargs):
         slot_id = request.data.get('slot') or request.data.get('slot_id')
         try:
-            slot_obj = Slot.objects.select_for_update().select_related('service__master').get(pk=slot_id)
+            slot_obj = (Slot.objects
+                        .select_for_update()
+                        .select_related('service__master')
+                        .get(pk=slot_id))
         except Slot.DoesNotExist:
             return Response({'detail': 'Слот не найден'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -288,6 +327,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Нельзя бронировать прошедшее время'}, status=status.HTTP_400_BAD_REQUEST)
         if slot_obj.is_booked:
             return Response({'detail': 'Слот уже занят'}, status=status.HTTP_409_CONFLICT)
+
         response = super().create(request, *args, **kwargs)
 
         if response.status_code == status.HTTP_201_CREATED:
@@ -387,6 +427,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         transaction.on_commit(_after)
         return Response({'status': 'rejected'})
 
+    # GET /api/bookings/for_master/?telegram_id=...&period=today|tomorrow|week&status=...
     @action(detail=False, methods=['get'])
     def for_master(self, request):
         tg = request.query_params.get('telegram_id')
@@ -428,55 +469,27 @@ class BookingViewSet(viewsets.ModelViewSet):
         }
         return Response({'items': data, 'summary': summary})
 
-@api_view(["GET"])
-def master_public_basic(request, pk: int):
-    m = get_object_or_404(Master, pk=pk)
-    data = MasterSerializer(m).data
-    return Response(data)
 
-@api_view(["GET"])
-def services_by_master(request):
-    mid = request.GET.get("master")
-    qs = Service.objects.all()
-    if mid:
-        qs = qs.filter(master_id=mid)
-    ser = ServiceShortSerializer(qs.order_by("id"), many=True)
-    return Response(ser.data)
+class PortfolioViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    serializer_class = PortfolioSerializer
 
-@api_view(["GET"])
-def portfolio_by_master(request):
-    mid = request.GET.get("master")
-    qs = PortfolioItem.objects.all()
-    if mid:
-        qs = qs.filter(master_id=mid)
-    ser = PortfolioSerializer(qs.order_by("-created_at"), many=True)
-    return Response(ser.data)
+    def get_queryset(self):
+        master_id = self.request.query_params.get("master")
+        qs = PortfolioItem.objects.select_related("master").order_by("-created_at")
+        if master_id:
+            qs = qs.filter(master_id=master_id)
+        return qs
 
-@api_view(["GET"])
-def reviews_by_master(request):
-    """GET /api/reviews/?master=<id>&limit=3 — отзывы."""
-    mid = request.GET.get("master")
-    limit = int(request.GET.get("limit", "10") or 10)
-    qs = Review.objects.all()
-    if mid:
-        qs = qs.filter(master_id=mid)
-    qs = qs.order_by("-created_at")[:limit]
-    ser = ReviewSerializer(qs, many=True)
-    return Response(ser.data)
 
-@api_view(["GET"])
-def working_hours_by_master(request, pk: int):
-    DAYS_RU = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
-    qs = WorkingHour.objects.filter(master_id=pk).order_by("weekday")
-    raw = WorkingHourSerializer(qs, many=True).data
-    out = []
-    for r in raw:
-        w = r["weekday"]
-        out.append({
-            "weekday": w,
-            "day_ru": DAYS_RU[w] if 0 <= w <= 6 else "",
-            "open": (r["start"] or "")[:5] if r["start"] else "",
-            "close": (r["end"] or "")[:5] if r["end"] else "",
-            "is_closed": r.get("is_closed", False),
-        })
-    return Response(out)
+class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    serializer_class = ReviewSerializer
+
+    def get_queryset(self):
+        master_id = self.request.query_params.get("master")
+        limit = int(self.request.query_params.get("limit") or 0)
+        qs = Review.objects.select_related("master").order_by("-created_at")
+        if master_id:
+            qs = qs.filter(master_id=master_id)
+        if limit:
+            qs = qs[:limit]
+        return qs
