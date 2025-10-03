@@ -250,7 +250,12 @@ async function showMasterPublicProfile(id){
   else { $ava.textContent = (master?.name||'M').trim().slice(0,2).toUpperCase(); }
 
   document.getElementById('mpName').textContent = master?.name || 'Мастер';
-  document.getElementById('mpSub').textContent  = master?.title || master?.profession || (master?.specializations?.[0] || 'Специалист');
+  document.getElementById('mpSub').textContent =
+  master?.title
+  || master?.profession
+  || (Array.isArray(master?.specializations) && master.specializations.length
+        ? master.specializations.map(s => (typeof s === "string" ? s : s.name)).join(", ")
+        : "Специалист");
   const rating = Number(master?.rating || 0) || 0;
   const revCount = Number(master?.reviews_count || 0) || 0;
   document.getElementById('mpRatingNum').textContent = rating ? rating.toFixed(1) : '—';
