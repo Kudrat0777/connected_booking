@@ -268,16 +268,23 @@ async function showMasterPublicProfile(id){
   }
 
   if (Array.isArray(portfolio) && portfolio.length){
-    const grid = document.getElementById('mpGrid');
-    portfolio.slice(0,8).forEach(p=>{
-      const url = p.image || p.url || p.photo_url;
-      const item = document.createElement('div');
-      item.className = 'mp-ph';
-      if (url) item.style.backgroundImage = `url('${url}')`;
-      grid.appendChild(item);
-    });
-    document.getElementById('mpPortfolio').style.display='block';
-  }
+  const grid = document.getElementById('mpGrid');
+
+  const absUrl = (u)=>{
+    if (!u) return "";
+    return /^https?:\/\//i.test(u) ? u : new URL(u, location.origin).href;
+  };
+
+  portfolio.slice(0, 8).forEach(p=>{
+    const url = p.image_url || p.image || p.url || p.photo_url || "";
+    const item = document.createElement('div');
+    item.className = 'mp-ph';
+    if (url) item.style.backgroundImage = `url('${absUrl(url)}')`;
+    grid.appendChild(item);
+  });
+
+  document.getElementById('mpPortfolio').style.display='block';
+}
 
   if (Array.isArray(services) && services.length){
     const box = document.getElementById('mpSvcList');
