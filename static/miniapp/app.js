@@ -20,15 +20,41 @@ const $toast  = document.getElementById('toast');
 // ===== helpers =====
 function showLoading(on=true){ if($loader) $loader.style.display = on ? 'flex' : 'none'; }
 function toast(text, ms=1800){ if(!$toast) return; $toast.textContent=text; $toast.style.display='block'; setTimeout(()=>{$toast.style.display='none'}, ms); }
-async function api(url, init){
-  try{
+
+async function api(url, init, {allow404=false, fallback=null} = {}) {
+  try {
     showLoading(true);
     const r = await fetch(url, init);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json().catch(()=> ({}));
-  }catch(e){ console.error(e); toast('Ошибка сети'); throw e; }
-  finally{ showLoading(false); }
+    const text = await r.text(); // пробуем распарсить, даже если не ok
+    let data;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+
+    if (!r.ok) {
+      // мягкая обработка 404, когда это не критично
+      if (allow404 && r.status === 404) return fallback ?? (Array.isArray(fallback) ? [] : (fallback ?? {}));
+      // пробрасываем понятную ошибку
+      const err = new Error(`HTTP ${r.status} for ${url}`);
+      err.status = r.status;
+      err.body = data;
+      throw err;
+    }
+    return data;
+  } catch (e) {
+    console.error('[API ERROR]', e);
+    // показываем осмысленный тост (коротко), но не заспамим
+    const code = e?.status ? ` (${e.status})` : '';
+    toast(`Ошибка сети${code}`);
+    throw e;
+  } finally {
+    showLoading(false);
+  }
 }
+
+async function safeGet(url, fallback) {
+  try { return await api(url, undefined, {allow404:true, fallback}); }
+  catch { return fallback; }
+}
+
 const initials = (name='') => name.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
 
 // ===== bootstrap hero =====
@@ -67,7 +93,6 @@ window.returnToHero = function(){
   $hero.style.display = 'flex';
 };
 
-// ===== tiny router (без глобальной кнопки назад) =====
 const ViewStack = [];
 function navigate(viewFn){ ViewStack.push(viewFn); viewFn(); }
 function goBackOrHero(){
@@ -80,10 +105,264 @@ function goBackOrHero(){
   }
 }
 
-// ===== state =====
 let masterId = null, serviceId = null, slotId = null;
 let masterObj = null, serviceObj = null, slotObj = null;
-// ===== screens =====
+
+async function showMasterPublicProfile(id){
+  const mid = id ?? masterId;
+
+  $content.innerHTML = `
+    <div class="cb-header">
+      <div class="cb-header__row">
+        <button class="cb-back" id="cbBack">←</button>
+        <h2 class="cb-title">Профиль мастера</h2>
+      </div>
+      <div class="cb-sep"></div>
+    </div>
+
+    <div class="mp-wrap">
+      <section class="mp-card mp-head">
+        <div class="mp-ava" id="mpAva"></div>
+        <div class="mp-head-info">
+          <div class="mp-name" id="mpName">Мастер</div>
+          <div class="mp-sub"  id="mpSub">Специалист</div>
+          <div class="mp-rating" id="mpRating">
+            <span class="stars">★★★★★</span>
+            <span class="mp-rating-num" id="mpRatingNum">—</span>
+            <span class="mp-rev-count" id="mpRevCount"></span>
+          </div>
+          <div class="mp-online" id="mpOnline"><span class="dot"></span> Онлайн</div>
+        </div>
+      </section>
+
+      <section class="mp-card" id="mpBioBox" style="display:none">
+        <p class="mp-bio" id="mpBio"></p>
+      </section>
+
+      <section class="mp-card mp-stats" id="mpStats" style="display:none">
+        <div class="mp-stat"><div class="mp-stat-value" id="mpYears">—</div><div class="mp-stat-label">лет опыта</div></div>
+        <div class="mp-stat"><div class="mp-stat-value" id="mpClients">—</div><div class="mp-stat-label">клиентов</div></div>
+        <div class="mp-stat"><div class="mp-stat-value" id="mpSatisfy">—</div><div class="mp-stat-label">довольных</div></div>
+      </section>
+
+      <section class="mp-card" id="mpPortfolio" style="display:none">
+        <div class="mp-sec-title">📸 Портфолио работ</div>
+        <div class="mp-grid" id="mpGrid"></div>
+      </section>
+
+      <section class="mp-card" id="mpServices" style="display:none">
+        <div class="mp-sec-title">💅 Услуги и цены</div>
+        <div id="mpSvcList" class="mp-svcs"></div>
+      </section>
+
+      <section class="mp-card" id="mpAbout" style="display:none">
+        <div class="mp-sec-title">ℹ️ О мастере</div>
+        <div class="mp-about">
+          <div id="mpEduBox" style="display:none">
+            <div class="mp-subtitle">Образование и сертификаты</div>
+            <ul id="mpEdu" class="mp-ul"></ul>
+          </div>
+          <div id="mpSpecBox" style="display:none">
+            <div class="mp-subtitle">Специализация</div>
+            <div id="mpSpecs" class="mp-chips"></div>
+          </div>
+          <div id="mpHoursBox" style="display:none">
+            <div class="mp-subtitle">Рабочие часы</div>
+            <div id="mpHours" class="mp-hours"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mp-card" id="mpReviews" style="display:none">
+        <div class="mp-sec-title">💬 Отзывы клиентов</div>
+        <div id="mpRevList" class="mp-reviews"></div>
+      </section>
+
+      <div class="mp-fab">
+        <button class="mp-call" id="mpCall" title="Позвонить">📞</button>
+        <button class="mp-book" id="mpBook">Записаться</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('cbBack').onclick = goBackOrHero;
+
+  if (!document.getElementById('mp-css')) {
+    const css = `
+    .mp-wrap{padding:12px;display:grid;gap:10px}
+    .mp-card{background:#0f1720;border:1px solid #1e2a36;border-radius:16px;padding:14px;color:#d8e1ea}
+    .mp-head{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(180deg,#0f1720,#0b131b)}
+    .mp-ava{width:72px;height:72px;border-radius:50%;background:#2b4f88;display:flex;align-items:center;justify-content:center;
+      font-weight:800;color:#fff;background-size:cover;background-position:center}
+    .mp-name{font-size:20px;font-weight:800;color:#f2f7ff}
+    .mp-sub{opacity:.8;margin-top:2px}
+    .mp-rating{display:flex;align-items:center;gap:8px;margin-top:6px}
+    .mp-rating .stars{color:#f5c84b}
+    .mp-online{margin-top:4px;display:flex;align-items:center;gap:6px;color:#7ce38b}
+    .mp-online .dot{width:8px;height:8px;border-radius:50%;background:#2ecc71}
+    .mp-bio{line-height:1.45;color:#c8d3df}
+    .mp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+    .mp-stat-value{font-size:22px;font-weight:800;color:#fff}
+    .mp-stat-label{font-size:12px;opacity:.8}
+    .mp-sec-title{font-weight:800;color:#eaf2ff;margin-bottom:10px}
+    .mp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .mp-ph{width:100%;aspect-ratio:1/1;border-radius:12px;background:#1a2531;background-size:cover;background-position:center;border:1px solid #223142}
+    .mp-svcs{display:grid;gap:8px}
+    .mp-svc{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:12px;border:1px solid #223142;border-radius:12px;background:#0c141d;cursor:pointer}
+    .mp-svc-name{font-weight:700;color:#f6fbff}
+    .mp-svc-desc{font-size:12px;opacity:.8;margin-top:2px;max-width:220px}
+    .mp-svc-right{text-align:right}
+    .mp-svc-price{font-weight:800}
+    .mp-svc-dur{font-size:12px;opacity:.8}
+    .mp-about .mp-subtitle{font-weight:700;margin:10px 0 6px 0;color:#f0f6ff}
+    .mp-ul{padding-left:0;list-style:none}
+    .mp-ul li{opacity:.9;margin:4px 0}
+    .mp-chips{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{font-size:12px;padding:6px 10px;border-radius:999px;background:#13202c;border:1px solid #223142}
+    .mp-hours{display:grid;gap:4px}
+    .mp-hours-row{display:flex;justify-content:space-between;opacity:.9}
+    .mp-reviews{display:grid;gap:8px}
+    .mp-review{background:#0c141d;border:1px solid #223142;border-radius:12px;padding:10px}
+    .mp-rev-head{display:flex;align-items:center;gap:10px}
+    .mp-rev-ava{width:32px;height:32px;border-radius:50%;background:#2b4f88;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+    .mp-rev-meta{flex:1}
+    .mp-rev-name{font-weight:700}
+    .mp-rev-stars{color:#f5c84b;font-size:12px}
+    .mp-rev-date{font-size:12px;opacity:.7}
+    .mp-rev-text{margin-top:6px;line-height:1.4}
+    .mp-fab{position:sticky;bottom:12px;display:flex;justify-content:center;gap:10px}
+    .mp-call{width:44px;height:44px;border-radius:999px;background:#16a34a;color:#fff;border:0}
+    .mp-book{border-radius:999px;padding:12px 18px;background:#2563eb;border:0;color:#fff;font-weight:700}
+    @media(min-width:480px){ .mp-grid{grid-template-columns:repeat(3,1fr)} }
+    `;
+    const style = document.createElement('style'); style.id = 'mp-css'; style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  let master={}, services=[], portfolio=[], reviews=[], schedule=[];
+  try{ master = await api(`/api/masters/${mid}/`); }catch(_){}
+  try{ services = await api(`/api/services/?master=${mid}`) || []; }catch(_){}
+  try{ portfolio = await api(`/api/portfolio/?master=${mid}`) || []; }catch(_){}
+  try{ reviews = await api(`/api/reviews/?master=${mid}&limit=3`) || []; }catch(_){}
+  try{ schedule = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
+
+  const $ava = document.getElementById('mpAva');
+  if (master?.avatar_url){ $ava.style.backgroundImage = `url('${master.avatar_url}')`; }
+  else { $ava.textContent = (master?.name||'M').trim().slice(0,2).toUpperCase(); }
+
+  document.getElementById('mpName').textContent = master?.name || 'Мастер';
+  document.getElementById('mpSub').textContent  = master?.title || master?.profession || (master?.specializations?.[0] || 'Специалист');
+  const rating = Number(master?.rating || 0) || 0;
+  const revCount = Number(master?.reviews_count || 0) || 0;
+  document.getElementById('mpRatingNum').textContent = rating ? rating.toFixed(1) : '—';
+  document.getElementById('mpRevCount').textContent  = revCount ? `(${revCount} отзывов)` : '0 отзывов';
+  document.getElementById('mpOnline').style.display  = (master?.online===false) ? 'none' : 'flex';
+
+  if (master?.bio){ document.getElementById('mpBio').textContent = master.bio; document.getElementById('mpBioBox').style.display='block'; }
+  const exp = Number(master?.experience_years||0);
+  const clients = Number(master?.clients_count||0);
+  if (exp || clients || rating){
+    document.getElementById('mpYears').textContent   = exp ? `${exp}+` : '—';
+    document.getElementById('mpClients').textContent = clients ? `${clients}` : '—';
+    document.getElementById('mpSatisfy').textContent = rating ? `${Math.round((rating/5)*100)}%` : '98%';
+    document.getElementById('mpStats').style.display = 'grid';
+  }
+
+  if (Array.isArray(portfolio) && portfolio.length){
+    const grid = document.getElementById('mpGrid');
+    portfolio.slice(0,8).forEach(p=>{
+      const url = p.image || p.url || p.photo_url;
+      const item = document.createElement('div');
+      item.className = 'mp-ph';
+      if (url) item.style.backgroundImage = `url('${url}')`;
+      grid.appendChild(item);
+    });
+    document.getElementById('mpPortfolio').style.display='block';
+  }
+
+  if (Array.isArray(services) && services.length){
+    const box = document.getElementById('mpSvcList');
+    services.forEach(s=>{
+      const price = (s.price ?? 0);
+      const dur   = (s.duration ?? 0);
+      const el = document.createElement('div');
+      el.className = 'mp-svc';
+      el.innerHTML = `
+        <div class="mp-svc-left">
+          <div class="mp-svc-name">${s.name||'Услуга'}</div>
+          <div class="mp-svc-desc">${s.description||''}</div>
+        </div>
+        <div class="mp-svc-right">
+          <div class="mp-svc-price">${price?`${price} ₽`:'— ₽'}</div>
+          <div class="mp-svc-dur">${dur?`${dur} мин`:'0 мин'}</div>
+        </div>`;
+      el.onclick = ()=>{ serviceId = s.id; serviceObj=s; navigate(showSlots); };
+      box.appendChild(el);
+    });
+    document.getElementById('mpServices').style.display='block';
+  }
+
+  const edu = master?.education || master?.certificates || [];
+  const specs = master?.specializations || [];
+  if ((edu && edu.length) || (specs && specs.length) || (schedule && schedule.length)){
+    if (edu && edu.length){
+      const ul = document.getElementById('mpEdu');
+      (Array.isArray(edu)?edu:[edu]).forEach(e=>{
+        const li=document.createElement('li'); li.textContent = `• ${typeof e==='string'?e:(e.name||e.caption||'Сертификат')}`;
+        ul.appendChild(li);
+      });
+      document.getElementById('mpEduBox').style.display='block';
+    }
+    if (specs && specs.length){
+      const cont = document.getElementById('mpSpecs');
+      specs.forEach(s=>{
+        const chip=document.createElement('span'); chip.className='chip';
+        chip.textContent = (typeof s==='string'?s:(s.name||'Специализация'));
+        cont.appendChild(chip);
+      });
+      document.getElementById('mpSpecBox').style.display='block';
+    }
+    if (schedule && schedule.length){
+      const box = document.getElementById('mpHours');
+      schedule.forEach(row=>{
+        const line=document.createElement('div'); line.className='mp-hours-row';
+        line.innerHTML = `<span>${row.day_ru||row.day||''}</span><span>${row.open||'—'} - ${row.close||'—'}</span>`;
+        box.appendChild(line);
+      });
+      document.getElementById('mpHoursBox').style.display='block';
+    }
+    document.getElementById('mpAbout').style.display='block';
+  }
+
+  if (Array.isArray(reviews) && reviews.length){
+    const list = document.getElementById('mpRevList');
+    reviews.forEach(r=>{
+      const el = document.createElement('div');
+      el.className='mp-review';
+      const name = r.author_name || r.user || 'Клиент';
+      const starsN = Math.max(1,Math.min(5,Number(r.stars||r.rating||5)));
+      const stars = '★★★★★'.slice(0,starsN) + '☆☆☆☆☆'.slice(starsN);
+      el.innerHTML = `
+        <div class="mp-rev-head">
+          <div class="mp-rev-ava">${(name||'')[0]?.toUpperCase()||'К'}</div>
+          <div class="mp-rev-meta">
+            <div class="mp-rev-name">${name}</div>
+            <div class="mp-rev-stars">${stars}</div>
+          </div>
+          <div class="mp-rev-date">${r.created_at? new Date(r.created_at).toLocaleDateString('ru-RU'):''}</div>
+        </div>
+        <div class="mp-rev-text">${r.text||r.comment||''}</div>`;
+      list.appendChild(el);
+    });
+    document.getElementById('mpReviews').style.display='block';
+  }
+
+  document.getElementById('mpBook').onclick = ()=> navigate(showServices);
+  document.getElementById('mpCall').onclick = ()=>{
+    const tel = master?.phone || '+7 (999) 123-45-67';
+    try{ window.location.href = `tel:${tel.replace(/[^\d+]/g,'')}`; }catch(_){ toast(`Телефон: ${tel}`); }
+  };
+}
+
 async function showMasters(){
   $content.innerHTML = `
     <div class="cb-header">
@@ -131,7 +410,11 @@ async function showMasters(){
       <div class="cb-dot ${m.online===false?'off':''}"></div>
       <div class="cb-arrow">→</div>
     `;
-    card.onclick = ()=>{ masterId = m.id; masterObj = m; navigate(showServices); };
+    card.onclick = ()=>{
+        masterId = m.id;
+        masterObj = m;
+        navigate(()=> showMasterPublicProfile(m.id));
+    };
     list.appendChild(card);
   });
 }

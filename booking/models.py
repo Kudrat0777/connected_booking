@@ -12,6 +12,42 @@ class Master(models.Model):
     def __str__(self):
         return self.name
 
+class MasterEducation(models.Model):
+    master = models.ForeignKey(Master, on_delete=models.CASCADE, related_name="education")
+    title = models.CharField(max_length=255)  # "Московский колледж красоты (2018)"
+
+    def __str__(self):
+        return self.title
+
+
+class MasterSpecialization(models.Model):
+    master = models.ForeignKey(Master, on_delete=models.CASCADE, related_name="specializations")
+    name = models.CharField(max_length=80)    # "Аппаратный маникюр"
+
+
+class PortfolioItem(models.Model):
+    master = models.ForeignKey(Master, on_delete=models.CASCADE, related_name="portfolio")
+    image_url = models.URLField()
+    caption = models.CharField(max_length=140, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class WorkingHour(models.Model):
+    master = models.ForeignKey(Master, on_delete=models.CASCADE, related_name="working_hours")
+    weekday = models.IntegerField()  # 0=Пн ... 6=Вс
+    start = models.TimeField(null=True, blank=True)
+    end = models.TimeField(null=True, blank=True)
+    is_closed = models.BooleanField(default=False)
+
+
+class Review(models.Model):
+    master = models.ForeignKey(Master, on_delete=models.CASCADE, related_name="reviews")
+    author_name = models.CharField(max_length=120)
+    rating = models.IntegerField()  # 1..5
+    text = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class Service(models.Model):
     name = models.CharField(max_length=100)
     master = models.ForeignKey(Master, on_delete=models.CASCADE)

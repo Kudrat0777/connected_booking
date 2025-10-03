@@ -7,13 +7,14 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-
-from .models import Master, Service, Slot, Booking
+from .models import Master, Service, PortfolioItem, Review, WorkingHour, Slot, Booking
 from .serializers import (
-    MasterSerializer, ServiceSerializer, SlotSerializer, BookingSerializer
+    MasterSerializer, ServiceShortSerializer, PortfolioSerializer,
+    ReviewSerializer, WorkingHourSerializer, SlotSerializer, ServiceSerializer, BookingSerializer
 )
+from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
 from django.core.files.base import ContentFile
 from urllib.parse import urljoin
@@ -371,7 +372,6 @@ class BookingViewSet(viewsets.ModelViewSet):
         transaction.on_commit(_after)
         return Response({'status': 'confirmed'})
 
-    # POST /api/bookings/{id}/reject/
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         booking = self.get_object()
@@ -427,3 +427,56 @@ class BookingViewSet(viewsets.ModelViewSet):
             'rejected': qs.filter(status='rejected').count(),
         }
         return Response({'items': data, 'summary': summary})
+
+@api_view(["GET"])
+def master_public_basic(request, pk: int):
+    m = get_object_or_404(Master, pk=pk)
+    data = MasterSerializer(m).data
+    return Response(data)
+
+@api_view(["GET"])
+def services_by_master(request):
+    mid = request.GET.get("master")
+    qs = Service.objects.all()
+    if mid:
+        qs = qs.filter(master_id=mid)
+    ser = ServiceShortSerializer(qs.order_by("id"), many=True)
+    return Response(ser.data)
+
+@api_view(["GET"])
+def portfolio_by_master(request):
+    mid = request.GET.get("master")
+    qs = PortfolioItem.objects.all()
+    if mid:
+        qs = qs.filter(master_id=mid)
+    ser = PortfolioSerializer(qs.order_by("-created_at"), many=True)
+    return Response(ser.data)
+
+@api_view(["GET"])
+def reviews_by_master(request):
+    """GET /api/reviews/?master=<id>&limit=3 — отзывы."""
+    mid = request.GET.get("master")
+    limit = int(request.GET.get("limit", "10") or 10)
+    qs = Review.objects.all()
+    if mid:
+        qs = qs.filter(master_id=mid)
+    qs = qs.order_by("-created_at")[:limit]
+    ser = ReviewSerializer(qs, many=True)
+    return Response(ser.data)
+
+@api_view(["GET"])
+def working_hours_by_master(request, pk: int):
+    DAYS_RU = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
+    qs = WorkingHour.objects.filter(master_id=pk).order_by("weekday")
+    raw = WorkingHourSerializer(qs, many=True).data
+    out = []
+    for r in raw:
+        w = r["weekday"]
+        out.append({
+            "weekday": w,
+            "day_ru": DAYS_RU[w] if 0 <= w <= 6 else "",
+            "open": (r["start"] or "")[:5] if r["start"] else "",
+            "close": (r["end"] or "")[:5] if r["end"] else "",
+            "is_closed": r.get("is_closed", False),
+        })
+    return Response(out)
