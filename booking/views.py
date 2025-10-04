@@ -52,7 +52,6 @@ class MasterViewSet(viewsets.ModelViewSet):
     queryset = Master.objects.all()
     serializer_class = MasterSerializer
 
-    # детальная страница мастера — отдаём расширенный публичный профиль
     def retrieve(self, request, *args, **kwargs):
         self.serializer_class = MasterPublicSerializer
         return super().retrieve(request, *args, **kwargs)
@@ -146,6 +145,25 @@ class MasterViewSet(viewsets.ModelViewSet):
                 "is_closed": r.get("is_closed", False),
             })
         return Response(out)
+
+    @action(detail=True, methods=['get'])
+    def next_slots(self, request, pk=None):
+        days = int(request.query_params.get('days') or 7)
+        limit = int(request.query_params.get('limit') or 24)
+
+        now = timezone.now()
+        until = now + timedelta(days=max(1, days))
+
+        qs = (Slot.objects
+        .select_related('service', 'service__master')
+        .filter(service__master_id=pk,
+                time__gte=now,
+                time__lte=until,
+                is_booked=False)
+        .order_by('time')[:max(1, limit)])
+
+        data = SlotSerializer(qs, many=True).data
+        return Response({"items": data})
 
 
 class ServiceViewSet(viewsets.ModelViewSet):

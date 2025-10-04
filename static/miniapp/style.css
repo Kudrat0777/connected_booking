@@ -172,3 +172,9 @@ body{
 
 .mp-more{margin-top:8px;border:1px solid #223142;background:#0c141d;color:#eaf2ff;padding:10px 12px;border-radius:10px;cursor:pointer}
 .mp-more:disabled{opacity:.6;cursor:default}
+
+.mp-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slot-chip{padding:8px 10px;border-radius:10px;background:#13202c;border:1px solid #223142;
+  text-align:center;cursor:pointer}
+.slot-chip small{display:block;opacity:.8;margin-top:2px}
+@media(min-width:480px){ .mp-slots{grid-template-columns:repeat(4,1fr)} }

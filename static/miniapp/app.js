@@ -155,6 +155,11 @@ async function showMasterPublicProfile(id){
         <div id="mpSvcList" class="mp-svcs"></div>
       </section>
 
+      <section class="mp-card" id="mpFastSlots" style="display:none">
+        <div class="mp-sec-title">🗓 Ближайшие слоты</div>
+        <div id="mpSlotsWrap" class="mp-slots"></div>
+      </section>
+
       <section class="mp-card" id="mpAbout" style="display:none">
         <div class="mp-sec-title">ℹ️ О мастере</div>
         <div class="mp-about">
@@ -260,6 +265,39 @@ async function showMasterPublicProfile(id){
   try{ portfolio = await api(`/api/portfolio/?master=${mid}`) || []; }catch(_){}
   try{ schedule  = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
 
+let fast = { items: [] };
+try { fast = await api(`/api/masters/${mid}/next_slots/?days=7&limit=24`) || {items:[]}; } catch(_){}
+
+if (Array.isArray(fast.items) && fast.items.length){
+  const mapServiceById = new Map((services||[]).map(s => [s.id, s]));
+  const $wrap = document.getElementById('mpSlotsWrap');
+
+  fast.items.forEach(s => {
+    const when = new Date(s.time);
+    const hhmm = when.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const ddmm = when.toLocaleDateString('ru-RU', {day:'2-digit', month:'short'});
+    const chip = document.createElement('div');
+    chip.className = 'slot-chip';
+    chip.innerHTML = `${hhmm}<small>${ddmm}</small>`;
+    chip.addEventListener('click', () => {
+      slotId  = s.id;
+      slotObj = {
+        id: s.id,
+        time: s.time,
+        is_booked: s.is_booked,
+        service: s.service,
+      };
+      serviceId  = s.service?.id;
+      serviceObj = mapServiceById.get(serviceId) || s.service || { id: serviceId, name: 'Услуга' };
+      masterObj  = master;
+
+      navigate(confirmBooking);
+    });
+    $wrap.appendChild(chip);
+  });
+
+  document.getElementById('mpFastSlots').style.display = 'block';
+}
   const $ava = document.getElementById('mpAva');
   if (master?.avatar_url){ $ava.style.backgroundImage = `url('${master.avatar_url}')`; }
   else { $ava.textContent = (master?.name||'M').trim().slice(0,2).toUpperCase(); }
