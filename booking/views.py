@@ -486,10 +486,30 @@ class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     def get_queryset(self):
         master_id = self.request.query_params.get("master")
-        limit = int(self.request.query_params.get("limit") or 0)
         qs = Review.objects.select_related("master").order_by("-created_at")
         if master_id:
             qs = qs.filter(master_id=master_id)
-        if limit:
-            qs = qs[:limit]
         return qs
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+
+        try:
+            limit = max(1, int(request.query_params.get("limit", 10)))
+        except Exception:
+            limit = 10
+        try:
+            offset = max(0, int(request.query_params.get("offset", 0)))
+        except Exception:
+            offset = 0
+
+        total = qs.count()
+        page_qs = qs[offset: offset + limit]
+        data = self.get_serializer(page_qs, many=True).data
+        next_offset = offset + limit if (offset + limit) < total else None
+
+        return Response({
+            "items": data,
+            "total": total,
+            "next_offset": next_offset
+        })

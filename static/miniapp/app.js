@@ -176,6 +176,7 @@ async function showMasterPublicProfile(id){
       <section class="mp-card" id="mpReviews" style="display:none">
         <div class="mp-sec-title">💬 Отзывы клиентов</div>
         <div id="mpRevList" class="mp-reviews"></div>
+        <button id="mpMoreReviews" class="mp-more" style="display:none">Показать ещё</button>
       </section>
 
       <div class="mp-fab">
@@ -232,17 +233,18 @@ async function showMasterPublicProfile(id){
     .mp-fab{position:sticky;bottom:12px;display:flex;justify-content:center;gap:10px}
     .mp-call{width:44px;height:44px;border-radius:999px;background:#16a34a;color:#fff;border:0}
     .mp-book{border-radius:999px;padding:12px 18px;background:#2563eb;border:0;color:#fff;font-weight:700}
+    .mp-more{margin-top:8px;border:1px solid #223142;background:#0c141d;color:#eaf2ff;padding:10px 12px;border-radius:10px;cursor:pointer}
+    .mp-more:disabled{opacity:.6;cursor:default}
     @media(min-width:480px){ .mp-grid{grid-template-columns:repeat(3,1fr)} }
     `;
     const style = document.createElement('style'); style.id = 'mp-css'; style.textContent = css;
     document.head.appendChild(style);
   }
 
-  let master={}, services=[], portfolio=[], reviews=[], schedule=[];
+  let master={}, services=[], portfolio=[], schedule=[];
   try{ master = await api(`/api/masters/${mid}/`); }catch(_){}
   try{ services = await api(`/api/services/?master=${mid}`) || []; }catch(_){}
   try{ portfolio = await api(`/api/portfolio/?master=${mid}`) || []; }catch(_){}
-  try{ reviews = await api(`/api/reviews/?master=${mid}&limit=3`) || []; }catch(_){}
   try{ schedule = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
 
   const $ava = document.getElementById('mpAva');
@@ -256,6 +258,7 @@ async function showMasterPublicProfile(id){
   || (Array.isArray(master?.specializations) && master.specializations.length
         ? master.specializations.map(s => (typeof s === "string" ? s : s.name)).join(", ")
         : "Специалист");
+
   const rating = Number(master?.rating || 0) || 0;
   const revCount = Number(master?.reviews_count || 0) || 0;
   document.getElementById('mpRatingNum').textContent = rating ? rating.toFixed(1) : '—';
@@ -273,23 +276,17 @@ async function showMasterPublicProfile(id){
   }
 
   if (Array.isArray(portfolio) && portfolio.length){
-  const grid = document.getElementById('mpGrid');
-
-  const absUrl = (u)=>{
-    if (!u) return "";
-    return /^https?:\/\//i.test(u) ? u : new URL(u, location.origin).href;
-  };
-
-  portfolio.slice(0, 8).forEach(p=>{
-    const url = p.image_url || p.image || p.url || p.photo_url || "";
-    const item = document.createElement('div');
-    item.className = 'mp-ph';
-    if (url) item.style.backgroundImage = `url('${absUrl(url)}')`;
-    grid.appendChild(item);
-  });
-
-  document.getElementById('mpPortfolio').style.display='block';
-}
+    const grid = document.getElementById('mpGrid');
+    const absUrl = (u)=> /^https?:\/\//i.test(u) ? u : new URL(u, location.origin).href;
+    portfolio.slice(0, 8).forEach(p=>{
+      const url = p.image_url || p.image || "";
+      const item = document.createElement('div');
+      item.className = 'mp-ph';
+      if (url) item.style.backgroundImage = `url('${absUrl(url)}')`;
+      grid.appendChild(item);
+    });
+    document.getElementById('mpPortfolio').style.display='block';
+  }
 
   if (Array.isArray(services) && services.length){
     const box = document.getElementById('mpSvcList');
@@ -345,13 +342,22 @@ async function showMasterPublicProfile(id){
     document.getElementById('mpAbout').style.display='block';
   }
 
-  if (Array.isArray(reviews) && reviews.length){
+  // --- Пагинация отзывов ---
+  let reviewsState = { offset: 0, limit: 3, next: 0, total: 0 };
+
+  async function loadReviews(append=false){
+    const url = `/api/reviews/?master=${mid}&limit=${reviewsState.limit}&offset=${reviewsState.offset}`;
+    let resp = {items:[]};
+    try { resp = await api(url) || {items:[]}; } catch(_) { resp = {items:[]}; }
+
     const list = document.getElementById('mpRevList');
-    reviews.forEach(r=>{
+    if (!append) list.innerHTML = '';
+
+    (resp.items || []).forEach(r=>{
       const el = document.createElement('div');
       el.className='mp-review';
       const name = r.author_name || r.user || 'Клиент';
-      const starsN = Math.max(1,Math.min(5,Number(r.stars||r.rating||5)));
+      const starsN = Math.max(1,Math.min(5,Number(r.rating||r.stars||5)));
       const stars = '★★★★★'.slice(0,starsN) + '☆☆☆☆☆'.slice(starsN);
       el.innerHTML = `
         <div class="mp-rev-head">
@@ -365,8 +371,29 @@ async function showMasterPublicProfile(id){
         <div class="mp-rev-text">${r.text||r.comment||''}</div>`;
       list.appendChild(el);
     });
-    document.getElementById('mpReviews').style.display='block';
+
+    const box = document.getElementById('mpReviews');
+    const btn = document.getElementById('mpMoreReviews');
+    box.style.display = list.children.length ? 'block' : 'none';
+
+    reviewsState.total = resp.total ?? 0;
+    const next = resp.next_offset ?? null;
+    reviewsState.offset = next ?? (reviewsState.offset + (resp.items?.length || 0));
+
+    if (next !== null){
+      btn.style.display = 'block';
+      btn.disabled = false;
+    } else {
+      btn.style.display = 'none';
+      btn.disabled = true;
+    }
   }
+
+  await loadReviews(false);
+  document.getElementById('mpMoreReviews').onclick = async (e)=>{
+    e.currentTarget.disabled = true;
+    await loadReviews(true);
+  };
 
   document.getElementById('mpBook').onclick = ()=> navigate(showServices);
   document.getElementById('mpCall').onclick = ()=>{

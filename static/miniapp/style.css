@@ -169,3 +169,6 @@ body{
 .loading-spinner{ width:32px; height:32px; border:3px solid var(--tg-theme-hint-color,#e1e1e1); border-top:3px solid var(--tg-theme-button-color,#3390ec);
   border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 16px; }
 @keyframes spin{ to{ transform:rotate(360deg) } }
+
+.mp-more{margin-top:8px;border:1px solid #223142;background:#0c141d;color:#eaf2ff;padding:10px 12px;border-radius:10px;cursor:pointer}
+.mp-more:disabled{opacity:.6;cursor:default}
