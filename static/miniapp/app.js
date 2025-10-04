@@ -148,6 +148,7 @@ async function showMasterPublicProfile(id){
       <section class="mp-card" id="mpPortfolio" style="display:none">
         <div class="mp-sec-title">📸 Портфолио работ</div>
         <div class="mp-grid" id="mpGrid"></div>
+        <button id="mpMorePortfolio" class="mp-more-btn" style="display:none">Показать ещё работы</button>
       </section>
 
       <section class="mp-card" id="mpServices" style="display:none">
@@ -202,8 +203,7 @@ async function showMasterPublicProfile(id){
     .mp-wrap{padding:12px;display:grid;gap:10px}
     .mp-card{background:#0f1720;border:1px solid #1e2a36;border-radius:16px;padding:14px;color:#d8e1ea}
     .mp-head{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(180deg,#0f1720,#0b131b)}
-    .mp-ava{width:72px;height:72px;border-radius:50%;background:#2b4f88;display:flex;align-items:center;justify-content:center;
-      font-weight:800;color:#fff;background-size:cover;background-position:center}
+    .mp-ava{width:72px;height:72px;border-radius:50%;background:#2b4f88;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background-size:cover;background-position:center}
     .mp-name{font-size:20px;font-weight:800;color:#f2f7ff}
     .mp-sub{opacity:.8;margin-top:2px}
     .mp-rating{display:flex;align-items:center;gap:8px;margin-top:6px}
@@ -216,6 +216,7 @@ async function showMasterPublicProfile(id){
     .mp-stat-label{font-size:12px;opacity:.8}
     .mp-sec-title{font-weight:800;color:#eaf2ff;margin-bottom:10px}
     .mp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    @media(min-width:480px){ .mp-grid{grid-template-columns:repeat(3,1fr)} }
     .mp-ph{width:100%;aspect-ratio:1/1;border-radius:12px;background:#1a2531;background-size:cover;background-position:center;border:1px solid #223142;cursor:zoom-in}
     .mp-svcs{display:grid;gap:8px}
     .mp-svc{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:12px;border:1px solid #223142;border-radius:12px;background:#0c141d;cursor:pointer}
@@ -245,7 +246,11 @@ async function showMasterPublicProfile(id){
     .mp-fab{position:sticky;bottom:12px;display:flex;justify-content:center;gap:10px}
     .mp-call{width:44px;height:44px;border-radius:999px;background:#16a34a;color:#fff;border:0}
     .mp-book{border-radius:999px;padding:12px 18px;background:#2563eb;border:0;color:#fff;font-weight:700}
-    @media(min-width:480px){ .mp-grid{grid-template-columns:repeat(3,1fr)} }
+
+    .mp-slots{display:flex;flex-wrap:wrap;gap:8px}
+    .slot-chip{padding:8px 10px;border-radius:999px;border:1px solid #223142;background:#0c141d;cursor:pointer;font-weight:600}
+    .slot-chip small{margin-left:6px;opacity:.7;font-weight:500}
+    .slot-chip:active{transform:scale(.98)}
 
     .lb{position:fixed;inset:0;z-index:1000}
     .lb-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.8)}
@@ -257,63 +262,52 @@ async function showMasterPublicProfile(id){
 
   const absUrl = (u)=> !u ? "" : /^https?:\/\//i.test(u) ? u : new URL(u, location.origin).href;
 
-  let master={}, services=[], portfolio=[], schedule=[];
-  let reviewsState = { items: [], next: 0, total: 0, loading: false };
+  let master={}, services=[], schedule=[];
+  try{ master   = await api(`/api/masters/${mid}/`); }catch(_){}
+  try{ services = await api(`/api/services/?master=${mid}`) || []; }catch(_){}
+  try{ schedule = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
 
-  try{ master    = await api(`/api/masters/${mid}/`); }catch(_){}
-  try{ services  = await api(`/api/services/?master=${mid}`) || []; }catch(_){}
-  try{ portfolio = await api(`/api/portfolio/?master=${mid}`) || []; }catch(_){}
-  try{ schedule  = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
+  try{
+    const fast = await api(`/api/masters/${mid}/next_slots/?days=7&limit=24`);
+    if (fast && Array.isArray(fast.items) && fast.items.length){
+      const mapServiceById = new Map(services.map(s => [s.id, s]));
+      const wrap = document.getElementById('mpSlotsWrap');
+      fast.items.forEach(s=>{
+        const when = new Date(s.time);
+        const hhmm = when.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        const ddmm = when.toLocaleDateString('ru-RU', {day:'2-digit', month:'short'});
+        const chip = document.createElement('div');
+        chip.className = 'slot-chip';
+        chip.innerHTML = `${hhmm}<small>${ddmm}</small>`;
+        chip.onclick = ()=>{
+          slotId = s.id;
+          slotObj = { id:s.id, time:s.time, is_booked:s.is_booked, service:s.service };
+          serviceId  = s.service?.id;
+          serviceObj = mapServiceById.get(serviceId) || s.service || { id: serviceId, name: 'Услуга' };
+          masterObj  = master;
+          navigate(confirmBooking);
+        };
+        wrap.appendChild(chip);
+      });
+      document.getElementById('mpFastSlots').style.display='block';
+    }
+  }catch(_){}
 
-let fast = { items: [] };
-try { fast = await api(`/api/masters/${mid}/next_slots/?days=7&limit=24`) || {items:[]}; } catch(_){}
-
-if (Array.isArray(fast.items) && fast.items.length){
-  const mapServiceById = new Map((services||[]).map(s => [s.id, s]));
-  const $wrap = document.getElementById('mpSlotsWrap');
-
-  fast.items.forEach(s => {
-    const when = new Date(s.time);
-    const hhmm = when.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    const ddmm = when.toLocaleDateString('ru-RU', {day:'2-digit', month:'short'});
-    const chip = document.createElement('div');
-    chip.className = 'slot-chip';
-    chip.innerHTML = `${hhmm}<small>${ddmm}</small>`;
-    chip.addEventListener('click', () => {
-      slotId  = s.id;
-      slotObj = {
-        id: s.id,
-        time: s.time,
-        is_booked: s.is_booked,
-        service: s.service,
-      };
-      serviceId  = s.service?.id;
-      serviceObj = mapServiceById.get(serviceId) || s.service || { id: serviceId, name: 'Услуга' };
-      masterObj  = master;
-
-      navigate(confirmBooking);
-    });
-    $wrap.appendChild(chip);
-  });
-
-  document.getElementById('mpFastSlots').style.display = 'block';
-}
   const $ava = document.getElementById('mpAva');
   if (master?.avatar_url){ $ava.style.backgroundImage = `url('${master.avatar_url}')`; }
   else { $ava.textContent = (master?.name||'M').trim().slice(0,2).toUpperCase(); }
 
   document.getElementById('mpName').textContent = master?.name || 'Мастер';
   document.getElementById('mpSub').textContent =
-    master?.title
-    || master?.profession
-    || (Array.isArray(master?.specializations) && master.specializations.length
-          ? master.specializations.map(s => (typeof s === "string" ? s : s.name)).join(", ")
-          : "Специалист");
+    master?.title || master?.profession ||
+    (Array.isArray(master?.specializations) && master.specializations.length
+      ? master.specializations.map(s => (typeof s === "string" ? s : s.name)).join(", ")
+      : "Специалист");
 
   const rating   = Number(master?.rating || 0) || 0;
   const revCount = Number(master?.reviews_count || 0) || 0;
   document.getElementById('mpRatingNum').textContent = rating ? rating.toFixed(1) : '—';
-  document.getElementById('mpRevCount').textContent  = `(${revCount} отзывов)`;
+  document.getElementById('mpRevCount').textContent  = revCount ? `(${revCount} отзывов)` : '0 отзывов';
   document.getElementById('mpOnline').style.display  = (master?.online===false) ? 'none' : 'flex';
 
   if (master?.bio){ document.getElementById('mpBio').textContent = master.bio; document.getElementById('mpBioBox').style.display='block'; }
@@ -326,23 +320,7 @@ if (Array.isArray(fast.items) && fast.items.length){
     document.getElementById('mpStats').style.display = 'grid';
   }
 
-  if (Array.isArray(portfolio) && portfolio.length){
-    const grid = document.getElementById('mpGrid');
-    portfolio.slice(0, 8).forEach(p=>{
-      const url = p.image_url || p.image || p.url || p.photo_url || "";
-      const item = document.createElement('div');
-      item.className = 'mp-ph';
-      if (url) {
-        const full = absUrl(url);
-        item.style.backgroundImage = `url('${full}')`;
-        item.addEventListener('click', ()=> openLB(full));
-      }
-      grid.appendChild(item);
-    });
-    document.getElementById('mpPortfolio').style.display='block';
-  }
-
-  if (Array.isArray(services) && services.length){
+  if (services.length){
     const box = document.getElementById('mpSvcList');
     services.forEach(s=>{
       const price = (s.price ?? 0);
@@ -370,7 +348,8 @@ if (Array.isArray(fast.items) && fast.items.length){
     if (edu && edu.length){
       const ul = document.getElementById('mpEdu');
       (Array.isArray(edu)?edu:[edu]).forEach(e=>{
-        const li=document.createElement('li'); li.textContent = `• ${typeof e==='string'?e:(e.title||e.name||e.caption||'Сертификат')}`;
+        const li=document.createElement('li');
+        li.textContent = `• ${typeof e==='string'?e:(e.title||e.name||e.caption||'Сертификат')}`;
         ul.appendChild(li);
       });
       document.getElementById('mpEduBox').style.display='block';
@@ -387,8 +366,8 @@ if (Array.isArray(fast.items) && fast.items.length){
     if (schedule && schedule.length){
       const box = document.getElementById('mpHours');
       schedule.forEach(row=>{
-        const line=document.createElement('div'); line.className='mp-hours-row';
         const closed = row.is_closed ? 'Выходной' : `${row.open||'—'} - ${row.close||'—'}`;
+        const line=document.createElement('div'); line.className='mp-hours-row';
         line.innerHTML = `<span>${row.day_ru||row.day||''}</span><span>${closed}</span>`;
         box.appendChild(line);
       });
@@ -397,33 +376,65 @@ if (Array.isArray(fast.items) && fast.items.length){
     document.getElementById('mpAbout').style.display='block';
   }
 
+  const grid = document.getElementById('mpGrid');
+  const morePortfolioBtn = document.getElementById('mpMorePortfolio');
+  const PORT_PAGE = 6;
+  let portNext = 0;
+
+  function renderPortfolioItems(items){
+    items.forEach(p=>{
+      const url = p.image_url || p.image || p.url || p.photo_url || "";
+      const item = document.createElement('div');
+      item.className = 'mp-ph';
+      if (url) {
+        const full = /^https?:\/\//i.test(url) ? url : new URL(url, location.origin).href;
+        item.style.backgroundImage = `url('${full}')`;
+        item.onclick = ()=> openLB(full);
+      }
+      grid.appendChild(item);
+    });
+  }
+
+  async function loadPortfolio(offset){
+    const r = await api(`/api/portfolio/?master=${mid}&limit=${PORT_PAGE}&offset=${offset}`);
+    const items = Array.isArray(r) ? r : (r.items || []);
+    if (items.length){
+      renderPortfolioItems(items);
+      document.getElementById('mpPortfolio').style.display='block';
+    }
+    portNext = Array.isArray(r) ? null : (r.next_offset ?? null);
+    morePortfolioBtn.style.display = portNext != null ? 'block' : 'none';
+  }
+
+  try {
+    await loadPortfolio(0);
+  } catch (_) {
+    const arr = await api(`/api/portfolio/?master=${mid}`) || [];
+    renderPortfolioItems(Array.isArray(arr) ? arr.slice(0, PORT_PAGE) : []);
+    document.getElementById('mpPortfolio').style.display='block';
+    portNext = Array.isArray(arr) && arr.length > PORT_PAGE ? PORT_PAGE : null;
+    morePortfolioBtn.style.display = portNext != null ? 'block' : 'none';
+  }
+
+  morePortfolioBtn.onclick = async ()=>{
+    if (portNext == null) return;
+    morePortfolioBtn.disabled = true; morePortfolioBtn.textContent = 'Загрузка…';
+    try { await loadPortfolio(portNext); }
+    finally { morePortfolioBtn.disabled = false; morePortfolioBtn.textContent = 'Показать ещё работы'; }
+  };
+
   const $revBox  = document.getElementById('mpReviews');
   const $revList = document.getElementById('mpRevList');
   const $moreBtn = document.getElementById('mpMoreReviews');
+  const REV_PAGE = 3;
+  let revNext = 0;
 
-  async function loadReviews(offset=0){
-    if (reviewsState.loading) return;
-    reviewsState.loading = true;
-    try{
-      const r = await api(`/api/reviews/paged/?master=${mid}&limit=3&offset=${offset}`);
-      const items = r.items || [];
-      reviewsState.items.push(...items);
-      reviewsState.total = r.total ?? reviewsState.total;
-      reviewsState.next  = (r.next_offset ?? null);
-
-      items.forEach(addReviewCard);
-      $revBox.style.display = 'block';
-      $moreBtn.style.display = reviewsState.next != null ? 'block' : 'none';
-    }catch(_){}
-    finally{ reviewsState.loading = false; }
-  }
-
-  function addReviewCard(r){
+  function renderReview(r){
     const el = document.createElement('div');
     el.className='mp-review';
     const name = r.author_name || r.user || 'Клиент';
-    const starsN = Math.max(1,Math.min(5,Number(r.rating||r.stars||5)));
-    const stars  = '★★★★★'.slice(0,starsN) + '☆☆☆☆☆'.slice(starsN);
+    const n = Math.max(1,Math.min(5,Number(r.rating||r.stars||5)));
+    const stars  = '★★★★★'.slice(0,n) + '☆☆☆☆☆'.slice(n);
     el.innerHTML = `
       <div class="mp-rev-head">
         <div class="mp-rev-ava">${(name||'')[0]?.toUpperCase()||'К'}</div>
@@ -437,21 +448,32 @@ if (Array.isArray(fast.items) && fast.items.length){
     $revList.appendChild(el);
   }
 
-  $moreBtn.addEventListener('click', ()=> {
-    if (reviewsState.next != null) loadReviews(reviewsState.next);
-  });
+  async function loadReviews(offset){
+    const r = await api(`/api/reviews/?master=${mid}&limit=${REV_PAGE}&offset=${offset}`);
+    const items = Array.isArray(r) ? r : (r.items || []);
+    if (items.length){ items.forEach(renderReview); $revBox.style.display='block'; }
+    revNext = Array.isArray(r) ? null : (r.next_offset ?? null);
+    $moreBtn.style.display = revNext != null ? 'block' : 'none';
+  }
 
-  await loadReviews(0);
+  try { await loadReviews(0); } catch(_) {}
+
+  $moreBtn.onclick = async ()=>{
+    if (revNext == null) return;
+    $moreBtn.disabled = true; $moreBtn.textContent = 'Загрузка…';
+    try { await loadReviews(revNext); }
+    finally { $moreBtn.disabled = false; $moreBtn.textContent = 'Показать ещё отзывы'; }
+  };
+
+  function openLB(src){ const lb=document.getElementById('lb'); document.getElementById('lbImg').src=src; lb.style.display='block'; }
+  document.getElementById('lbClose').onclick = ()=>{ document.getElementById('lb').style.display='none'; };
+  document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') document.getElementById('lb').style.display='none'; });
 
   document.getElementById('mpBook').onclick = ()=> navigate(showServices);
   document.getElementById('mpCall').onclick = ()=>{
     const tel = master?.phone || '+7 (999) 123-45-67';
     try{ window.location.href = `tel:${tel.replace(/[^\d+]/g,'')}`; }catch(_){ toast(`Телефон: ${tel}`); }
   };
-
-  function openLB(src){ const lb=document.getElementById('lb'); document.getElementById('lbImg').src=src; lb.style.display='block'; }
-  document.getElementById('lbClose').addEventListener('click', ()=>{ document.getElementById('lb').style.display='none'; });
-  document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') document.getElementById('lb').style.display='none'; });
 }
 
 async function showMasters(){

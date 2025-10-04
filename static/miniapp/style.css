@@ -178,3 +178,6 @@ body{
   text-align:center;cursor:pointer}
 .slot-chip small{display:block;opacity:.8;margin-top:2px}
 @media(min-width:480px){ .mp-slots{grid-template-columns:repeat(4,1fr)} }
+
+.mp-more{margin-top:10px;width:100%;padding:10px;border-radius:12px;border:1px solid #223142;background:#13202c;color:#eaf2ff}
+.mp-more:disabled{opacity:.6;cursor:not-allowed}

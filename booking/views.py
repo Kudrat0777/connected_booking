@@ -491,12 +491,27 @@ class BookingViewSet(viewsets.ModelViewSet):
 class PortfolioViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = PortfolioSerializer
 
-    def get_queryset(self):
-        master_id = self.request.query_params.get("master")
-        qs = PortfolioItem.objects.select_related("master").order_by("-created_at")
+    def list(self, request, *args, **kwargs):
+        master_id = request.query_params.get("master")
+        try:
+            limit = max(1, int(request.query_params.get("limit", 8)))
+        except Exception:
+            limit = 8
+        try:
+            offset = max(0, int(request.query_params.get("offset", 0)))
+        except Exception:
+            offset = 0
+
+        qs = PortfolioItem.objects.select_related("master")
         if master_id:
             qs = qs.filter(master_id=master_id)
-        return qs
+        qs = qs.order_by("-created_at")
+
+        total = qs.count()
+        page = qs[offset:offset+limit]
+        data = PortfolioSerializer(page, many=True).data
+        next_offset = offset + limit if (offset + limit) < total else None
+        return Response({"items": data, "total": total, "next_offset": next_offset})
 
 
 class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
