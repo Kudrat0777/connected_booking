@@ -82,24 +82,25 @@ class MasterPublicSerializer(serializers.ModelSerializer):
     specializations = SpecSerializer(many=True, read_only=True)
     portfolio = PortfolioSerializer(many=True, read_only=True)
     working_hours = WorkingHourSerializer(many=True, read_only=True)
-    reviews = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
     reviews_count = serializers.SerializerMethodField()
-
-    def get_reviews(self, obj):
-        qs = obj.reviews.order_by("-created_at")[:10]
-        return ReviewSerializer(qs, many=True).data
+    clients_count = serializers.SerializerMethodField()
 
     def get_rating(self, obj):
-        return round(obj.rating_value or 0.0, 1)
+        agg = Review.objects.filter(master=obj).aggregate(avg=Avg('rating'))
+        return round(agg['avg'] or 0, 2)
 
     def get_reviews_count(self, obj):
-        return obj.reviews_count
+        return Review.objects.filter(master=obj).count()
+
+    def get_clients_count(self, obj):
+        qs = Booking.objects.filter(slot__service__master=obj)
+        return qs.values('telegram_id', 'name').distinct().count()
 
     class Meta:
-        model = Master
+        model  = Master
         fields = [
             "id","name","avatar_url","bio","experience_years",
-            "rating","reviews_count",
-            "services","education","specializations","portfolio","working_hours","reviews"
+            "rating","reviews_count","clients_count",
+            "services","education","specializations","portfolio","working_hours"
         ]
