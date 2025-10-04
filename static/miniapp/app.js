@@ -176,13 +176,18 @@ async function showMasterPublicProfile(id){
       <section class="mp-card" id="mpReviews" style="display:none">
         <div class="mp-sec-title">💬 Отзывы клиентов</div>
         <div id="mpRevList" class="mp-reviews"></div>
-        <button id="mpMoreReviews" class="mp-more" style="display:none">Показать ещё</button>
+        <button id="mpMoreReviews" class="mp-more-btn" style="display:none">Показать ещё отзывы</button>
       </section>
 
       <div class="mp-fab">
         <button class="mp-call" id="mpCall" title="Позвонить">📞</button>
         <button class="mp-book" id="mpBook">Записаться</button>
       </div>
+    </div>
+
+    <div id="lb" class="lb" style="display:none">
+      <div class="lb-backdrop" id="lbClose"></div>
+      <img class="lb-img" id="lbImg" alt="">
     </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
@@ -206,7 +211,7 @@ async function showMasterPublicProfile(id){
     .mp-stat-label{font-size:12px;opacity:.8}
     .mp-sec-title{font-weight:800;color:#eaf2ff;margin-bottom:10px}
     .mp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-    .mp-ph{width:100%;aspect-ratio:1/1;border-radius:12px;background:#1a2531;background-size:cover;background-position:center;border:1px solid #223142}
+    .mp-ph{width:100%;aspect-ratio:1/1;border-radius:12px;background:#1a2531;background-size:cover;background-position:center;border:1px solid #223142;cursor:zoom-in}
     .mp-svcs{display:grid;gap:8px}
     .mp-svc{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:12px;border:1px solid #223142;border-radius:12px;background:#0c141d;cursor:pointer}
     .mp-svc-name{font-weight:700;color:#f6fbff}
@@ -230,22 +235,30 @@ async function showMasterPublicProfile(id){
     .mp-rev-stars{color:#f5c84b;font-size:12px}
     .mp-rev-date{font-size:12px;opacity:.7}
     .mp-rev-text{margin-top:6px;line-height:1.4}
+    .mp-more-btn{margin-top:10px;width:100%;border-radius:10px;padding:10px 12px;background:#13202c;border:1px solid #223142;color:#eaf2ff;font-weight:600}
+    .mp-more-btn:hover{background:#162633}
     .mp-fab{position:sticky;bottom:12px;display:flex;justify-content:center;gap:10px}
     .mp-call{width:44px;height:44px;border-radius:999px;background:#16a34a;color:#fff;border:0}
     .mp-book{border-radius:999px;padding:12px 18px;background:#2563eb;border:0;color:#fff;font-weight:700}
-    .mp-more{margin-top:8px;border:1px solid #223142;background:#0c141d;color:#eaf2ff;padding:10px 12px;border-radius:10px;cursor:pointer}
-    .mp-more:disabled{opacity:.6;cursor:default}
     @media(min-width:480px){ .mp-grid{grid-template-columns:repeat(3,1fr)} }
+
+    .lb{position:fixed;inset:0;z-index:1000}
+    .lb-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.8)}
+    .lb-img{position:absolute;max-width:92vw;max-height:92vh;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:12px}
     `;
     const style = document.createElement('style'); style.id = 'mp-css'; style.textContent = css;
     document.head.appendChild(style);
   }
 
+  const absUrl = (u)=> !u ? "" : /^https?:\/\//i.test(u) ? u : new URL(u, location.origin).href;
+
   let master={}, services=[], portfolio=[], schedule=[];
-  try{ master = await api(`/api/masters/${mid}/`); }catch(_){}
-  try{ services = await api(`/api/services/?master=${mid}`) || []; }catch(_){}
+  let reviewsState = { items: [], next: 0, total: 0, loading: false };
+
+  try{ master    = await api(`/api/masters/${mid}/`); }catch(_){}
+  try{ services  = await api(`/api/services/?master=${mid}`) || []; }catch(_){}
   try{ portfolio = await api(`/api/portfolio/?master=${mid}`) || []; }catch(_){}
-  try{ schedule = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
+  try{ schedule  = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
 
   const $ava = document.getElementById('mpAva');
   if (master?.avatar_url){ $ava.style.backgroundImage = `url('${master.avatar_url}')`; }
@@ -253,16 +266,16 @@ async function showMasterPublicProfile(id){
 
   document.getElementById('mpName').textContent = master?.name || 'Мастер';
   document.getElementById('mpSub').textContent =
-  master?.title
-  || master?.profession
-  || (Array.isArray(master?.specializations) && master.specializations.length
-        ? master.specializations.map(s => (typeof s === "string" ? s : s.name)).join(", ")
-        : "Специалист");
+    master?.title
+    || master?.profession
+    || (Array.isArray(master?.specializations) && master.specializations.length
+          ? master.specializations.map(s => (typeof s === "string" ? s : s.name)).join(", ")
+          : "Специалист");
 
-  const rating = Number(master?.rating || 0) || 0;
+  const rating   = Number(master?.rating || 0) || 0;
   const revCount = Number(master?.reviews_count || 0) || 0;
   document.getElementById('mpRatingNum').textContent = rating ? rating.toFixed(1) : '—';
-  document.getElementById('mpRevCount').textContent  = revCount ? `(${revCount} отзывов)` : '0 отзывов';
+  document.getElementById('mpRevCount').textContent  = `(${revCount} отзывов)`;
   document.getElementById('mpOnline').style.display  = (master?.online===false) ? 'none' : 'flex';
 
   if (master?.bio){ document.getElementById('mpBio').textContent = master.bio; document.getElementById('mpBioBox').style.display='block'; }
@@ -277,12 +290,15 @@ async function showMasterPublicProfile(id){
 
   if (Array.isArray(portfolio) && portfolio.length){
     const grid = document.getElementById('mpGrid');
-    const absUrl = (u)=> /^https?:\/\//i.test(u) ? u : new URL(u, location.origin).href;
     portfolio.slice(0, 8).forEach(p=>{
-      const url = p.image_url || p.image || "";
+      const url = p.image_url || p.image || p.url || p.photo_url || "";
       const item = document.createElement('div');
       item.className = 'mp-ph';
-      if (url) item.style.backgroundImage = `url('${absUrl(url)}')`;
+      if (url) {
+        const full = absUrl(url);
+        item.style.backgroundImage = `url('${full}')`;
+        item.addEventListener('click', ()=> openLB(full));
+      }
       grid.appendChild(item);
     });
     document.getElementById('mpPortfolio').style.display='block';
@@ -316,7 +332,7 @@ async function showMasterPublicProfile(id){
     if (edu && edu.length){
       const ul = document.getElementById('mpEdu');
       (Array.isArray(edu)?edu:[edu]).forEach(e=>{
-        const li=document.createElement('li'); li.textContent = `• ${typeof e==='string'?e:(e.name||e.caption||'Сертификат')}`;
+        const li=document.createElement('li'); li.textContent = `• ${typeof e==='string'?e:(e.title||e.name||e.caption||'Сертификат')}`;
         ul.appendChild(li);
       });
       document.getElementById('mpEduBox').style.display='block';
@@ -334,7 +350,8 @@ async function showMasterPublicProfile(id){
       const box = document.getElementById('mpHours');
       schedule.forEach(row=>{
         const line=document.createElement('div'); line.className='mp-hours-row';
-        line.innerHTML = `<span>${row.day_ru||row.day||''}</span><span>${row.open||'—'} - ${row.close||'—'}</span>`;
+        const closed = row.is_closed ? 'Выходной' : `${row.open||'—'} - ${row.close||'—'}`;
+        line.innerHTML = `<span>${row.day_ru||row.day||''}</span><span>${closed}</span>`;
         box.appendChild(line);
       });
       document.getElementById('mpHoursBox').style.display='block';
@@ -342,64 +359,61 @@ async function showMasterPublicProfile(id){
     document.getElementById('mpAbout').style.display='block';
   }
 
-  // --- Пагинация отзывов ---
-  let reviewsState = { offset: 0, limit: 3, next: 0, total: 0 };
+  const $revBox  = document.getElementById('mpReviews');
+  const $revList = document.getElementById('mpRevList');
+  const $moreBtn = document.getElementById('mpMoreReviews');
 
-  async function loadReviews(append=false){
-    const url = `/api/reviews/?master=${mid}&limit=${reviewsState.limit}&offset=${reviewsState.offset}`;
-    let resp = {items:[]};
-    try { resp = await api(url) || {items:[]}; } catch(_) { resp = {items:[]}; }
+  async function loadReviews(offset=0){
+    if (reviewsState.loading) return;
+    reviewsState.loading = true;
+    try{
+      const r = await api(`/api/reviews/paged/?master=${mid}&limit=3&offset=${offset}`);
+      const items = r.items || [];
+      reviewsState.items.push(...items);
+      reviewsState.total = r.total ?? reviewsState.total;
+      reviewsState.next  = (r.next_offset ?? null);
 
-    const list = document.getElementById('mpRevList');
-    if (!append) list.innerHTML = '';
-
-    (resp.items || []).forEach(r=>{
-      const el = document.createElement('div');
-      el.className='mp-review';
-      const name = r.author_name || r.user || 'Клиент';
-      const starsN = Math.max(1,Math.min(5,Number(r.rating||r.stars||5)));
-      const stars = '★★★★★'.slice(0,starsN) + '☆☆☆☆☆'.slice(starsN);
-      el.innerHTML = `
-        <div class="mp-rev-head">
-          <div class="mp-rev-ava">${(name||'')[0]?.toUpperCase()||'К'}</div>
-          <div class="mp-rev-meta">
-            <div class="mp-rev-name">${name}</div>
-            <div class="mp-rev-stars">${stars}</div>
-          </div>
-          <div class="mp-rev-date">${r.created_at? new Date(r.created_at).toLocaleDateString('ru-RU'):''}</div>
-        </div>
-        <div class="mp-rev-text">${r.text||r.comment||''}</div>`;
-      list.appendChild(el);
-    });
-
-    const box = document.getElementById('mpReviews');
-    const btn = document.getElementById('mpMoreReviews');
-    box.style.display = list.children.length ? 'block' : 'none';
-
-    reviewsState.total = resp.total ?? 0;
-    const next = resp.next_offset ?? null;
-    reviewsState.offset = next ?? (reviewsState.offset + (resp.items?.length || 0));
-
-    if (next !== null){
-      btn.style.display = 'block';
-      btn.disabled = false;
-    } else {
-      btn.style.display = 'none';
-      btn.disabled = true;
-    }
+      items.forEach(addReviewCard);
+      $revBox.style.display = 'block';
+      $moreBtn.style.display = reviewsState.next != null ? 'block' : 'none';
+    }catch(_){}
+    finally{ reviewsState.loading = false; }
   }
 
-  await loadReviews(false);
-  document.getElementById('mpMoreReviews').onclick = async (e)=>{
-    e.currentTarget.disabled = true;
-    await loadReviews(true);
-  };
+  function addReviewCard(r){
+    const el = document.createElement('div');
+    el.className='mp-review';
+    const name = r.author_name || r.user || 'Клиент';
+    const starsN = Math.max(1,Math.min(5,Number(r.rating||r.stars||5)));
+    const stars  = '★★★★★'.slice(0,starsN) + '☆☆☆☆☆'.slice(starsN);
+    el.innerHTML = `
+      <div class="mp-rev-head">
+        <div class="mp-rev-ava">${(name||'')[0]?.toUpperCase()||'К'}</div>
+        <div class="mp-rev-meta">
+          <div class="mp-rev-name">${name}</div>
+          <div class="mp-rev-stars">${stars}</div>
+        </div>
+        <div class="mp-rev-date">${r.created_at? new Date(r.created_at).toLocaleDateString('ru-RU'):''}</div>
+      </div>
+      <div class="mp-rev-text">${r.text||r.comment||''}</div>`;
+    $revList.appendChild(el);
+  }
+
+  $moreBtn.addEventListener('click', ()=> {
+    if (reviewsState.next != null) loadReviews(reviewsState.next);
+  });
+
+  await loadReviews(0);
 
   document.getElementById('mpBook').onclick = ()=> navigate(showServices);
   document.getElementById('mpCall').onclick = ()=>{
     const tel = master?.phone || '+7 (999) 123-45-67';
     try{ window.location.href = `tel:${tel.replace(/[^\d+]/g,'')}`; }catch(_){ toast(`Телефон: ${tel}`); }
   };
+
+  function openLB(src){ const lb=document.getElementById('lb'); document.getElementById('lbImg').src=src; lb.style.display='block'; }
+  document.getElementById('lbClose').addEventListener('click', ()=>{ document.getElementById('lb').style.display='none'; });
+  document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') document.getElementById('lb').style.display='none'; });
 }
 
 async function showMasters(){

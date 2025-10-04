@@ -491,9 +491,9 @@ class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             qs = qs.filter(master_id=master_id)
         return qs
 
-    def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()
-
+    @action(detail=False, methods=['get'])
+    def paged(self, request):
+        mid = request.query_params.get("master")
         try:
             limit = max(1, int(request.query_params.get("limit", 10)))
         except Exception:
@@ -503,13 +503,12 @@ class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         except Exception:
             offset = 0
 
-        total = qs.count()
-        page_qs = qs[offset: offset + limit]
-        data = self.get_serializer(page_qs, many=True).data
-        next_offset = offset + limit if (offset + limit) < total else None
+        qs = self.get_queryset()
+        if mid:
+            qs = qs.filter(master_id=mid)
 
-        return Response({
-            "items": data,
-            "total": total,
-            "next_offset": next_offset
-        })
+        total = qs.count()
+        page = qs[offset:offset+limit]
+        data = ReviewSerializer(page, many=True).data
+        next_offset = offset + limit if (offset + limit) < total else None
+        return Response({"items": data, "total": total, "next_offset": next_offset})
