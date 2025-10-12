@@ -14,6 +14,7 @@ from urllib.parse import urljoin
 
 from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import (
@@ -519,29 +520,65 @@ class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     def get_queryset(self):
         master_id = self.request.query_params.get("master")
+        limit = int(self.request.query_params.get("limit") or 0)
         qs = Review.objects.select_related("master").order_by("-created_at")
         if master_id:
             qs = qs.filter(master_id=master_id)
+        if limit:
+            qs = qs[:limit]
         return qs
 
-    @action(detail=False, methods=['get'])
-    def paged(self, request):
-        mid = request.query_params.get("master")
-        try:
-            limit = max(1, int(request.query_params.get("limit", 10)))
-        except Exception:
-            limit = 10
-        try:
-            offset = max(0, int(request.query_params.get("offset", 0)))
-        except Exception:
-            offset = 0
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny], url_path='add')
+    def add_review(self, request):
+        """
+        POST /api/reviews/add/
+        body: { master: <id>, rating: 1..5, text?: str, author_name?: str, telegram_id?: int }
+        Правило: у пользователя должна быть прошедшая бронь к этому мастеру.
+        """
+        master_id   = request.data.get('master')
+        rating      = request.data.get('rating')
+        text        = (request.data.get('text') or '').strip()
+        author_name = (request.data.get('author_name') or '').strip() or 'Клиент'
+        telegram_id = request.data.get('telegram_id')
 
-        qs = self.get_queryset()
-        if mid:
-            qs = qs.filter(master_id=mid)
+        # базовые проверки
+        try:
+            rating = int(rating)
+        except Exception:
+            return Response({'detail': 'rating обязателен и должен быть числом 1..5'}, status=400)
+        if rating < 1 or rating > 5:
+            return Response({'detail': 'rating вне диапазона 1..5'}, status=400)
+        if not master_id:
+            return Response({'detail': 'master обязателен'}, status=400)
 
-        total = qs.count()
-        page = qs[offset:offset+limit]
-        data = ReviewSerializer(page, many=True).data
-        next_offset = offset + limit if (offset + limit) < total else None
-        return Response({"items": data, "total": total, "next_offset": next_offset})
+        # должна существовать прошедшая запись у этого клиента к этому мастеру
+        if not telegram_id:
+            return Response({'detail': 'telegram_id обязателен'}, status=400)
+
+        now = timezone.now()
+        had_past_booking = Booking.objects.filter(
+            telegram_id=telegram_id,
+            slot__service__master_id=master_id,
+            slot__time__lt=now
+        ).exists()
+        if not had_past_booking:
+            return Response({'detail': 'Отзыв можно оставить только после визита к мастеру'}, status=403)
+
+        # опционально — антиспам: не чаще 1 отзыва в 24ч к одному мастеру
+        day_ago = now - timedelta(hours=24)
+        recently = Review.objects.filter(
+            master_id=master_id,
+            author_name=author_name,
+            created_at__gte=day_ago
+        ).exists()
+        if recently:
+            return Response({'detail': 'Вы уже оставляли отзыв недавно. Попробуйте позже.'}, status=429)
+
+        # создаём отзыв
+        rev = Review.objects.create(
+            master_id=master_id,
+            author_name=author_name,
+            rating=rating,
+            text=text
+        )
+        return Response(ReviewSerializer(rev).data, status=201)
