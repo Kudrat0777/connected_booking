@@ -49,6 +49,75 @@ const $toast  = document.getElementById('toast');
 function showLoading(on=true){ if($loader) $loader.style.display = on ? 'flex' : 'none'; }
 function toast(text, ms=1800){ if(!$toast) return; $toast.textContent=text; $toast.style.display='block'; setTimeout(()=>{$toast.style.display='none'}, ms); }
 
+// Нормализует любой «типичный» ответ API к массиву
+function toArray(payload) {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+
+  // если пришёл объект — ищем массивы
+  if (typeof payload === 'object') {
+    // самый частый случай: обёртка во вложенном data
+    const data = payload.data && typeof payload.data === 'object' ? payload.data : null;
+
+    // популярные ключи
+    const keys = [
+      'results', 'items', 'data', 'objects', 'list',
+      'masters', 'rows', 'records'
+    ];
+
+    for (const obj of [payload, data]) {
+      if (!obj) continue;
+      for (const k of keys) {
+        if (Array.isArray(obj[k])) return obj[k];
+      }
+      // если не угадали ключ — берём первый массив среди значений
+      for (const v of Object.values(obj)) {
+        if (Array.isArray(v)) return v;
+      }
+    }
+  }
+  return [];
+}
+
+
+// --- HTTP helper (СТАРЫЙ РАБОЧИЙ) ---
+async function api(url, init, {allow404=false, fallback=null} = {}) {
+  try {
+    showLoading(true);
+    const r = await fetch(url, init);
+    const text = await r.text(); // пробуем распарсить, даже если не ok
+    let data;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+
+    if (!r.ok) {
+      // мягкая обработка 404, когда это не критично
+      if (allow404 && r.status === 404) {
+        return fallback ?? (Array.isArray(fallback) ? [] : (fallback ?? {}));
+      }
+      // пробрасываем понятную ошибку
+      const err = new Error(`HTTP ${r.status} for ${url}`);
+      err.status = r.status;
+      err.body = data;
+      throw err;
+    }
+    return data;
+  } catch (e) {
+    console.error('[API ERROR]', e);
+    // показываем осмысленный тост (коротко), но не заспамим
+    const code = e?.status ? ` (${e.status})` : '';
+    toast(`Ошибка сети${code}`);
+    throw e;
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function safeGet(url, fallback) {
+  try { return await api(url, undefined, {allow404:true, fallback}); }
+  catch { return fallback; }
+}
+
+
 const initials = (name='') => name.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
 
 function mountLottieFromData(data, slotId = 'welcomeSticker') {
@@ -573,37 +642,59 @@ async function showMasters(){
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  let masters = [];
-  try { masters = await api('/api/masters/'); } catch(_){}
+  let raw = [];
+  try {
+    // allow404 + fallback, чтобы не падало молча, и лог
+    raw = await api('/api/masters/?limit=100', undefined, { allow404:true, fallback:[] });
+  } catch (e) {
+    console.error('GET /api/masters/ failed:', e);
+    raw = [];
+  }
+
+  console.log('masters payload →', raw);
+  const masters = toArray(raw);
 
   const loading = document.getElementById('cbLoading');
   const list    = document.getElementById('cbList');
   loading.style.display = 'none';
   list.style.display    = 'flex';
 
-  if (!masters.length){
-    list.innerHTML = `<div class="cb-card"><div class="cb-info"><div class="cb-name">Пока нет мастеров</div></div></div>`;
+  if (!Array.isArray(masters) || masters.length === 0){
+    console.warn('masters parsed empty; raw payload shown above');
+    list.innerHTML = `
+      <div class="cb-card">
+        <div class="cb-info">
+          <div class="cb-name">Пока нет мастеров</div>
+          <div class="cb-status">Проверь API /api/masters/ (см. консоль)</div>
+        </div>
+      </div>`;
     return;
   }
 
+  list.innerHTML = '';
   masters.forEach(m=>{
+    const name  = m.name || 'Мастер';
+    const bio   = m.bio || m.title || m.profession || 'Доступно сегодня';
+    const online= (m.online === false) ? 'off' : '';
+    const ava   = m.avatar_url || m.avatar || m.photo_url || '';
+
     const card = document.createElement('div');
     card.className = 'cb-card';
     card.innerHTML = `
-      <div class="cb-ava" ${m.avatar_url ? `style="background-image:url('${m.avatar_url}');background-size:cover;background-position:center"`:''}>
-        ${m.avatar_url ? '' : (initials(m.name)||'M')}
+      <div class="cb-ava" ${ava ? `style="background-image:url('${ava}');background-size:cover;background-position:center"`:''}>
+        ${ava ? '' : (initials(name)||'M')}
       </div>
       <div class="cb-info">
-        <div class="cb-name">${m.name||'Мастер'}</div>
-        <div class="cb-status">${m.bio || 'Доступно сегодня'}</div>
+        <div class="cb-name">${name}</div>
+        <div class="cb-status">${bio}</div>
       </div>
-      <div class="cb-dot ${m.online===false?'off':''}"></div>
+      <div class="cb-dot ${online}"></div>
       <div class="cb-arrow">→</div>
     `;
     card.onclick = ()=>{
-        masterId = m.id;
-        masterObj = m;
-        navigate(()=> showMasterPublicProfile(m.id));
+      masterId  = m.id;
+      masterObj = m;
+      navigate(()=> showMasterPublicProfile(m.id));
     };
     list.appendChild(card);
   });

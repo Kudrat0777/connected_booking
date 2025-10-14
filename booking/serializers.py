@@ -10,10 +10,22 @@ class MasterSerializer(serializers.ModelSerializer):
     reviews_count = serializers.SerializerMethodField()
 
     def get_rating(self, obj):
-        return round(obj.rating_value or 0.0, 1)
+        # если queryset уже аннотировал rating_value — используем его,
+        # иначе считаем на лету или берём из property rating_value_prop
+        val = getattr(obj, "rating_value", None)
+        if val is None:
+            val = getattr(obj, "rating_value_prop", None)
+        if val is None:
+            val = Review.objects.filter(master=obj).aggregate(avg=Avg("rating"))["avg"]
+        return round(val or 0.0, 1)
 
     def get_reviews_count(self, obj):
-        return obj.reviews_count
+        val = getattr(obj, "reviews_count", None)
+        if val is None:
+            val = getattr(obj, "reviews_count_prop", None)
+        if val is None:
+            val = Review.objects.filter(master=obj).count()
+        return int(val or 0)
 
     class Meta:
         model = Master
@@ -87,20 +99,29 @@ class MasterPublicSerializer(serializers.ModelSerializer):
     clients_count = serializers.SerializerMethodField()
 
     def get_rating(self, obj):
-        agg = Review.objects.filter(master=obj).aggregate(avg=Avg('rating'))
-        return round(agg['avg'] or 0, 2)
+        val = getattr(obj, "rating_value", None)
+        if val is None:
+            val = getattr(obj, "rating_value_prop", None)
+        if val is None:
+            val = Review.objects.filter(master=obj).aggregate(avg=Avg("rating"))["avg"]
+        return round(val or 0.0, 2)
 
     def get_reviews_count(self, obj):
-        return Review.objects.filter(master=obj).count()
+        val = getattr(obj, "reviews_count", None)
+        if val is None:
+            val = getattr(obj, "reviews_count_prop", None)
+        if val is None:
+            val = Review.objects.filter(master=obj).count()
+        return int(val or 0)
 
     def get_clients_count(self, obj):
         qs = Booking.objects.filter(slot__service__master=obj)
         return qs.values('telegram_id', 'name').distinct().count()
 
     class Meta:
-        model  = Master
+        model = Master
         fields = [
-            "id","name","avatar_url","bio","experience_years",
-            "rating","reviews_count","clients_count",
-            "services","education","specializations","portfolio","working_hours"
+            "id", "name", "avatar_url", "bio", "experience_years",
+            "rating", "reviews_count", "clients_count",
+            "services", "education", "specializations", "portfolio", "working_hours"
         ]

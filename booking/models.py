@@ -15,11 +15,11 @@ class Master(models.Model):
         return self.name
 
     @property
-    def rating_value(self):
+    def rating_value_prop(self):
         return self.reviews.aggregate(v=Avg("rating"))["v"] or 0.0
 
     @property
-    def reviews_count(self):
+    def reviews_count_prop(self):
         return self.reviews.aggregate(c=Count("id"))["c"] or 0
 
 
