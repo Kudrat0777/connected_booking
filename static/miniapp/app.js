@@ -83,7 +83,6 @@ function mountWebmToSlot(url, slotId='welcomeSticker'){
   el.appendChild(v);
 }
 
-// fallback: подхватить локальный .tgs, если сеть упала
 async function mountTgsFromUrl(url, slotId='welcomeSticker'){
   try{
     const res = await fetch(url, {cache:'no-store'});
@@ -839,7 +838,6 @@ function confirmBooking(){
   document.getElementById('cbBack').onclick = goBackOrHero;
 
   document.getElementById('cancelBtn').onclick = ()=> {
-    // просто шаг назад (к выбору времени) или на витрину, если стек пуст
     goBackOrHero();
   };
 
@@ -869,27 +867,25 @@ async function showMyBookings(){
   if (!tgUser?.id){ toast('Откройте через Telegram'); returnToHero?.(); return; }
 
   $content.innerHTML = `
-    <div class="cb-header">
-      <div class="cb-header__row">
-        <button class="cb-back" id="cbBack">←</button>
-        <h2 class="cb-title">Мои брони</h2>
-      </div>
-      <div class="cb-sep"></div>
+    <div class="tg-header">
+      <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
+      <div class="tg-title">Мои брони</div>
     </div>
+    <div class="tg-sep"></div>
 
-    <div class="cb-wrap">
-      <p class="subtitle fade-in">История ваших бронирований</p>
-
-      <div id="loadingState" class="loading">
-        <div class="loading-spinner"></div>
-        <p>Загружаем ваши брони...</p>
+    <div class="tg-wrap">
+      <div id="loadingState" class="tg-loading">
+        <div class="tg-spinner" aria-hidden="true"></div>
+        <div>Загружаем ваши брони…</div>
       </div>
 
-      <div id="bookingsList" class="bookings-list" style="display:none"></div>
-      <div id="emptyState" class="empty-state" style="display:none">
-        <div class="empty-icon">📅</div>
-        <div class="empty-title">Пока нет броней</div>
-        <div class="empty-subtitle">Создайте первую бронь, чтобы увидеть её здесь</div>
+      <div id="bookingsList" class="tg-list" style="display:none"></div>
+
+      <div id="emptyState" class="tg-empty" style="display:none">
+        <div id="emptyAnim" class="empty-anim" aria-hidden="true"></div>
+        <div class="tg-empty-title">Пока нет броней</div>
+        <div class="tg-empty-sub">Создайте первую запись, и она появится здесь</div>
+        <button id="emptyCta" class="tg-btn primary">Записаться</button>
       </div>
     </div>
   `;
@@ -898,81 +894,79 @@ async function showMyBookings(){
   let bookings = [];
   try { bookings = await api(`/api/bookings/?telegram_id=${tgUser.id}`); } catch(_){}
 
-  const $load = document.getElementById('loadingState');
-  const $list = document.getElementById('bookingsList');
-  const $empty= document.getElementById('emptyState');
+  const $load  = document.getElementById('loadingState');
+  const $list  = document.getElementById('bookingsList');
+  const $empty = document.getElementById('emptyState');
   $load.style.display = 'none';
 
   if (!Array.isArray(bookings) || bookings.length === 0){
-    $empty.style.display = 'block';
+    $empty.style.display = 'grid';
+    mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
+    document.getElementById('emptyCta')?.addEventListener('click', () => startFlow(showMasters));
     return;
   }
-  $list.style.display = 'block';
 
-  const statusText = s => s==='pending' ? 'Активна' : s==='confirmed' ? 'Активна' : s==='rejected' ? 'Отменена' : '';
-  const serviceIcon = name => {
-    const n = name||'';
-    if (n.includes('Стриж')) return '✂️';
-    if (n.includes('Окраш')) return '🎨';
-    if (n.includes('Маник')) return '💅';
-    if (n.includes('Педик')) return '🦶';
-    if (n.includes('Массаж')) return '💆';
+  const fmtTime  = (d)=> d ? new Date(d).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
+  const fmtDate  = (d)=> d ? new Date(d).toLocaleDateString('ru-RU',{day:'2-digit', month:'long'}) : '';
+  const serviceIcon = (name='')=>{
+    if (name.includes('Стриж')) return '✂️';
+    if (name.includes('Окраш')) return '🎨';
+    if (name.includes('Маник')) return '💅';
+    if (name.includes('Педик')) return '🦶';
+    if (name.includes('Массаж')) return '💆';
     return '✨';
   };
-  const cssStatus = (b) => {
-    if (b.status === 'rejected') return 'cancelled';
-    // считаем «завершённой», если время прошло
+  const classify = (b)=>{
+    if (b.status === 'rejected') return {cls:'cancelled', text:'Отменена'};
     const ts = b.slot?.time ? new Date(b.slot.time).getTime() : 0;
-    return ts && ts < Date.now() ? 'completed' : 'active';
+    if (ts && ts < Date.now()) return {cls:'completed', text:'Выполнена'};
+    return {cls:'active', text:'Активна'};
   };
 
+  $list.style.display = 'grid';
   $list.innerHTML = '';
   bookings
+    .slice()
     .sort((a,b)=> new Date(b.slot?.time||0) - new Date(a.slot?.time||0))
-    .forEach((b,idx)=>{
-      const svc   = b.slot?.service?.name || 'Услуга';
-      const when  = b.slot?.time ? new Date(b.slot.time) : null;
-      const timeS = when ? when.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
-      const dateS = when ? when.toLocaleDateString('ru-RU', {day:'2-digit', month:'long'}) : '';
-      const master= b.slot?.service?.master?.name || '—';
-      const stCls = cssStatus(b);
-      const stTxt = statusText(b.status);
+    .forEach((b)=>{
+      const svc    = b.slot?.service?.name || 'Услуга';
+      const master = b.slot?.service?.master?.name || '—';
+      const when   = b.slot?.time || null;
+      const {cls, text} = classify(b);
+      const ts = when ? new Date(when).getTime() : 0;
+      const isFuture = ts && ts > Date.now();
 
-      const card = document.createElement('div');
-      card.className = `booking-card ${stCls} slide-in`;
-      card.style.animationDelay = `${idx*0.06}s`;
-
-      const actionsHTML = (stCls==='active')
-        ? `<div class="booking-actions">
-             <button class="cancel-button" data-id="${b.id}">Отменить бронь</button>
-           </div>` : '';
-
-      card.innerHTML = `
-        <div class="booking-status status-${stCls}">${stTxt}</div>
-        <div class="booking-header">
-          <div class="booking-icon ${stCls}">${serviceIcon(svc)}</div>
-          <div class="booking-main-info">
-            <div class="booking-service">${svc}</div>
-            <div class="booking-time">${timeS}${dateS ? ' • '+dateS : ''}</div>
-            <div class="booking-master">Мастер: ${master}</div>
+      const cell = document.createElement('div');
+      cell.className = 'tg-cell';
+      cell.innerHTML = `
+        <div class="tg-ico" aria-hidden="true">${serviceIcon(svc)}</div>
+        <div class="tg-main">
+          <div class="tg-title-row">
+            <div class="tg-name">${svc}</div>
+          </div>
+          <div class="tg-sub">
+            ${fmtTime(when)}${when ? ' • ' + fmtDate(when) : ''} • Мастер: ${master}
           </div>
         </div>
-        ${actionsHTML}
+        <div class="tg-right">
+          <div class="tg-badge ${cls}">${text}</div>
+          ${cls==='active' && isFuture ? `<button class="tg-action" data-id="${b.id}">Отменить</button>` : ``}
+        </div>
       `;
-      $list.appendChild(card);
+      $list.appendChild(cell);
     });
 
-  $list.querySelectorAll('.cancel-button').forEach(btn=>{
+  $list.querySelectorAll('.tg-action').forEach(btn=>{
     btn.addEventListener('click', async (e)=>{
       e.stopPropagation();
-      const id = btn.dataset.id;
+      const id = btn.getAttribute('data-id');
       const ok = confirm('Отменить эту бронь?');
       if (!ok) return;
       try{
         const resp = await fetch(`/api/bookings/${id}/`, {method:'DELETE'});
         if (resp.status === 204){
           toast('Бронь отменена');
-          showMyBookings(); // перерисовать
+          showMyBookings();
         } else {
           toast('Ошибка отмены');
         }
