@@ -1,4 +1,4 @@
-// ===== Telegram theme & user =====
+// ===== Работа с Telegram WebApp и темой =====
 let tgUser = null;
 try {
   if (window.Telegram?.WebApp) {
@@ -10,7 +10,35 @@ try {
   }
 } catch (_) {}
 
-// ===== DOM =====
+function TG() {
+  return (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+}
+
+function applyThemeVars() {
+  const tg = TG();
+  const tp = tg?.themeParams || {};
+  const root = document.documentElement;
+
+  // ключи из доков: https://core.telegram.org/bots/webapps#themeparams
+  root.style.setProperty('--tg-bg-color', tp.bg_color || '#0e1621');
+  root.style.setProperty('--tg-secondary-bg-color', tp.secondary_bg_color || '#0b131b');
+  root.style.setProperty('--tg-text-color', tp.text_color || '#e0e9f2');
+  root.style.setProperty('--tg-hint-color', tp.hint_color || 'rgba(224,233,242,.65)');
+  root.style.setProperty('--tg-link-color', tp.link_color || '#6ab3f3');
+  root.style.setProperty('--tg-button-color', tp.button_color || '#2ea6ff');
+  root.style.setProperty('--tg-button-text-color', tp.button_text_color || '#ffffff');
+
+  try {
+    tg?.setHeaderColor(tg.colorScheme === 'dark' ? '#0e1621' : '#ffffff');
+    tg?.setBackgroundColor('secondary_bg_color'); // поддерживается доками
+  } catch(_) {}
+}
+try {
+  applyThemeVars();
+  TG()?.onEvent('themeChanged', applyThemeVars);
+} catch(_) {}
+
+// ===== Базовые DOM-элементы и хелперы =====
 const $hero   = document.getElementById('hero');
 const $app    = document.getElementById('app-shell');
 const $content= document.getElementById('content');
@@ -21,65 +49,64 @@ const $toast  = document.getElementById('toast');
 function showLoading(on=true){ if($loader) $loader.style.display = on ? 'flex' : 'none'; }
 function toast(text, ms=1800){ if(!$toast) return; $toast.textContent=text; $toast.style.display='block'; setTimeout(()=>{$toast.style.display='none'}, ms); }
 
-async function api(url, init, {allow404=false, fallback=null} = {}) {
-  try {
-    showLoading(true);
-    const r = await fetch(url, init);
-    const text = await r.text(); // пробуем распарсить, даже если не ok
-    let data;
-    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-
-    if (!r.ok) {
-      // мягкая обработка 404, когда это не критично
-      if (allow404 && r.status === 404) return fallback ?? (Array.isArray(fallback) ? [] : (fallback ?? {}));
-      // пробрасываем понятную ошибку
-      const err = new Error(`HTTP ${r.status} for ${url}`);
-      err.status = r.status;
-      err.body = data;
-      throw err;
-    }
-    return data;
-  } catch (e) {
-    console.error('[API ERROR]', e);
-    // показываем осмысленный тост (коротко), но не заспамим
-    const code = e?.status ? ` (${e.status})` : '';
-    toast(`Ошибка сети${code}`);
-    throw e;
-  } finally {
-    showLoading(false);
-  }
-}
-
-async function safeGet(url, fallback) {
-  try { return await api(url, undefined, {allow404:true, fallback}); }
-  catch { return fallback; }
-}
-
 const initials = (name='') => name.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
 
-// ===== bootstrap hero =====
+function mountLottieFromData(data, slotId = 'welcomeSticker') {
+  const el = document.getElementById(slotId);
+  if (!el || !data) return;
+  el.innerHTML = '';
+  el.classList.add('is-filled');
+  lottie.loadAnimation({
+    container: el,
+    renderer: 'svg',
+    loop: true,
+    autoplay: true,
+    animationData: data
+  });
+}
+
+function mountWebmToSlot(url, slotId='welcomeSticker'){
+  const el = document.getElementById(slotId);
+  if (!el || !url) return;
+  el.innerHTML = '';
+  el.classList.add('is-filled');
+
+  const v = document.createElement('video');
+  v.src = url;
+  v.autoplay = true;
+  v.loop = true;
+  v.muted = true;           // обязательно, чтобы автоплей прошёл
+  v.playsInline = true;     // iOS
+  v.style.width = '100%';
+  v.style.height = '100%';
+  v.style.objectFit = 'cover';
+  el.appendChild(v);
+}
+
+// fallback: подхватить локальный .tgs, если сеть упала
+async function mountTgsFromUrl(url, slotId='welcomeSticker'){
+  try{
+    const res = await fetch(url, {cache:'no-store'});
+    const buf = await res.arrayBuffer();
+    const jsonStr = pako.ungzip(new Uint8Array(buf), {to:'string'});
+    const data = JSON.parse(jsonStr);
+    mountLottieFromData(data, slotId);
+  }catch(e){ console.warn('local .tgs failed', e); }
+}
+
 (function initHero(){
   const tg = window.Telegram?.WebApp;
+  tg?.ready?.(); tg?.expand?.();
+
   const u = tg?.initDataUnsafe?.user;
-  if (u){
-    const first = u.first_name || 'Гость';
-    const title = document.getElementById('welcomeTitle');
-    const avatar= document.getElementById('userAvatar');
-    title && (title.textContent = `Привет, ${first}!`);
-    if (avatar){
-      if (u.photo_url){
-        avatar.style.backgroundImage = `url(${u.photo_url})`;
-        avatar.style.backgroundSize = 'cover';
-        avatar.style.backgroundPosition = 'center';
-        avatar.textContent = '';
-      } else {
-        avatar.textContent = (first[0]||'🙂').toUpperCase();
-      }
-    }
-  }
-  // hero buttons
-  document.getElementById('goBook')?.addEventListener('click', ()=> startFlow(showMasters));
-  document.getElementById('goMy')  ?.addEventListener('click', ()=> startFlow(showMyBookings));
+  const t = document.getElementById('welcomeTitle');
+  if (t) t.textContent = `Привет, ${u?.first_name || 'Гость'}!`;
+
+  // Прямо грузим локальную утку
+  mountTgsFromUrl("/static/miniapp/stickers/hello.tgs", 'welcomeSticker');
+
+  document.getElementById('goBook')?.addEventListener('click', () => startFlow(showMasters));
+  document.getElementById('goMy')  ?.addEventListener('click', () => startFlow(showMyBookings));
 })();
 
 function startFlow(fn){

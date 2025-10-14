@@ -6,19 +6,25 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Connected Booking</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=25" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=31" />
 </head>
 <body>
-  <div id="hero" class="cb-hero container">
-    <div class="avatar" id="userAvatar">👤</div>
-    <h1 class="welcome-title" id="welcomeTitle">Добро пожаловать!</h1>
+  <div id="hero" class="welcome-wrap" style="display:flex">
+   <div class="welcome-shell">
+    <div class="sticker-slot" id="welcomeSticker"></div>
+    <h1 class="welcome-title" id="welcomeTitle">Привет!</h1>
     <p class="welcome-subtitle">Выберите действие для продолжения</p>
-    <div class="actions">
-      <button id="goBook" class="action-button primary-button">📅 Записаться</button>
-      <button id="goMy"   class="action-button secondary-button">📋 Мои брони</button>
+
+    <div class="welcome-actions">
+      <button id="goBook" class="tg-btn primary"><span>📅</span><span>Записаться</span></button>
+      <button id="goMy"   class="tg-btn secondary"><span>📘</span><span>Мои брони</span></button>
     </div>
-    <div class="footer">Управляйте своими записями легко и удобно</div>
+
+    <div class="welcome-foot">Управляйте своими записями легко и удобно</div>
   </div>
+</div>
 
   <div id="app-shell" class="app-shell">
     <div id="content"></div>
@@ -27,6 +33,6 @@
   <div id="loader" class="loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
   <div id="toast" class="toast"></div>
 
-  <script src="{% static 'miniapp/app.js' %}?v=29"></script>
+  <script src="{% static 'miniapp/app.js' %}?v=42"></script>
 </body>
 </html>
