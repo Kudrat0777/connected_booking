@@ -33,14 +33,18 @@ class MasterSerializer(serializers.ModelSerializer):
                   "email","experience_years","rating","reviews_count")
 
 class ServiceSerializer(serializers.ModelSerializer):
+    master_name = serializers.CharField(source='master.name', read_only=True)
+
     class Meta:
         model = Service
-        fields = "__all__"
+        fields = ["id", "name", "master", "price", "duration", "description", "master_name"]
+
 
 class ServiceShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ["id", "name", "price", "duration", "description"]
+
 
 class SlotSerializer(serializers.ModelSerializer):
     service = ServiceSerializer(read_only=True)
@@ -56,11 +60,21 @@ class BookingSerializer(serializers.ModelSerializer):
     slot_id = serializers.PrimaryKeyRelatedField(
         queryset=Slot.objects.all(), source='slot', write_only=True
     )
+    master_name = serializers.SerializerMethodField()
+    service_name = serializers.CharField(source='slot.service.name', read_only=True)
+
+    def get_master_name(self, obj):
+        try:
+            return obj.slot.service.master.name
+        except Exception:
+            return None
+
     class Meta:
         model = Booking
         fields = (
             'id', 'name', 'slot', 'slot_id', 'created_at',
-            'telegram_id', 'username', 'photo_url', 'status'
+            'telegram_id', 'username', 'photo_url', 'status',
+            'master_name', 'service_name',
         )
 
 class EducationSerializer(serializers.ModelSerializer):

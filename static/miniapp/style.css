@@ -1,4 +1,10 @@
+/* =========================================================
+   Telegram Mini App — Clean Stylesheet
+   ========================================================= */
+
+/* ---------- Theme variables (base + Telegram fallbacks) ---------- */
 :root{
+  /* app base */
   --bg:#0f1520;
   --text:#e7eef7;
   --panel:#0f1723;
@@ -6,9 +12,24 @@
   --muted:#9aa6b2;
   --line:#273142;
   --accent:#3390ec;
+
+  /* Telegram theme fallbacks */
+  --tg-bg-color: #0e1621;
+  --tg-secondary-bg-color: #0b131b;
+  --tg-text-color: #e0e9f2;
+  --tg-hint-color: rgba(224,233,242,.65);
+  --tg-link-color: #6ab3f3;
+  --tg-button-color: #2ea6ff;
+  --tg-button-text-color: #ffffff;
+
+  /* Cards & radiuses */
+  --card-bd: color-mix(in srgb, var(--tg-text-color) 8%, transparent);
+  --card-bg: var(--tg-secondary-bg-color);
+  --shadow: 0 12px 36px color-mix(in srgb, #000 38%, transparent);
+  --r-xl: 20px; --r-lg: 14px;
 }
 
-/* base */
+/* ---------- Base ---------- */
 *{box-sizing:border-box}
 body{
   background:var(--tg-theme-bg-color,var(--bg));
@@ -17,13 +38,17 @@ body{
   margin:0; min-height:100vh; overflow-x:hidden;
 }
 
-/* hero */
+/* =========================================================
+   HERO (welcome)
+   ========================================================= */
 .container{max-width:400px;margin:0 auto;padding:24px;display:flex;flex-direction:column;align-items:center}
 .cb-hero{padding-top:24px}
-.avatar{width:80px;height:80px;border-radius:50%;
+.avatar{
+  width:80px;height:80px;border-radius:50%;
   background:linear-gradient(135deg,var(--tg-theme-button-color,var(--accent)),#2481cc);
   display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;
-  box-shadow:0 8px 28px rgba(0,0,0,.35); margin:24px auto 16px}
+  box-shadow:0 8px 28px rgba(0,0,0,.35); margin:24px auto 16px
+}
 .welcome-title{font-size:28px;font-weight:700;margin:4px 0 8px}
 .welcome-subtitle{opacity:.8;margin-bottom:24px}
 .actions{width:100%;display:flex;flex-direction:column;gap:14px}
@@ -33,82 +58,199 @@ body{
 .secondary-button{background:transparent;border:1px solid #2b3441;color:var(--text)}
 .footer{opacity:.7;margin:24px 0 10px}
 
-/* app shell */
+/* “Welcome” shell (cleaned) */
+.welcome-wrap{
+  min-height:100vh;width:100%;
+  background:var(--tg-bg-color);color:var(--tg-text-color);
+  display:block;align-items:center;justify-content:center;padding:16px;box-sizing:border-box
+}
+.welcome-shell{
+  width:100%;max-width:560px;background:var(--card-bg);
+  border:1px solid var(--card-bd);border-radius:var(--r-xl);
+  box-shadow:var(--shadow);padding:22px 16px 18px;
+  display:grid;grid-template-rows:auto auto auto 1fr auto;
+  opacity:0;transform:translateY(20px);animation:fadeInUp .6s ease-out forwards
+}
+.sticker-slot{
+  width:140px;height:140px;border-radius:16px;background:transparent;border:none;
+  display:flex;align-items:center;justify-content:center;overflow:visible;margin:0 auto 12px;
+  animation:popIn .8s cubic-bezier(.5,1.5,.5,1) forwards
+}
+.welcome-title{ text-align:center;font-weight:800;font-size:24px;letter-spacing:.2px;margin:8px 0 4px }
+.welcome-subtitle{ text-align:center;opacity:.85;margin:0 0 4px }
+.welcome-actions{ margin-top: clamp(28px, 22vh, 34vh); display:grid; gap:12px }
+.welcome-actions .tg-btn{ opacity:0; transform:translateY(10px); animation:fadeInUp .5s ease-out forwards }
+.welcome-actions .tg-btn:nth-child(1){ animation-delay:.4s }
+.welcome-actions .tg-btn:nth-child(2){ animation-delay:.55s }
+
+/* Telegram-style buttons */
+.tg-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;height:52px;border-radius:14px;border:0;
+  font-weight:800;font-size:16px;letter-spacing:.2px;cursor:pointer;
+  transition:transform .06s ease, filter .12s ease, box-shadow .12s ease
+}
+.tg-btn.primary{
+  background:var(--tg-button-color);color:var(--tg-button-text-color);
+  box-shadow:0 8px 22px color-mix(in srgb, var(--tg-button-color) 42%, transparent)
+}
+.tg-btn.secondary{
+  background:color-mix(in srgb, var(--tg-button-color) 12%, var(--tg-secondary-bg-color));
+  color:var(--tg-text-color);
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent)
+}
+.tg-btn:active{ transform:translateY(1px); filter:brightness(.96) }
+
+.welcome-foot{ margin-top:14px; text-align:center; font-size:13px; color:var(--tg-hint-color) }
+
+/* =========================================================
+   APP SHELL + Header
+   ========================================================= */
 .app-shell{display:none;max-width:640px;margin:0 auto;padding:0 16px 24px}
 #content{margin-top:12px}
 
-/* header with back arrow */
-.cb-header{position:sticky;top:0;z-index:5;background:var(--tg-theme-bg-color,var(--bg))}
-.cb-header__row{display:flex;align-items:center;gap:10px;padding:12px 4px 10px}
-.cb-back{border:0;background:#1b2432;color:var(--text);border-radius:10px;padding:10px 12px;font-size:16px;cursor:pointer}
-.cb-title{font-size:18px;font-weight:700;margin:0}
-.cb-sep{height:1px;background:var(--line);opacity:.7}
+.tg-header{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.tg-back{background:transparent;border:0;color:var(--tg-link-color);font-size:18px;line-height:1;padding:6px 8px;border-radius:10px}
+.tg-back:active{background:color-mix(in srgb, var(--tg-text-color) 10%, transparent)}
+.tg-title{font-weight:700;color:var(--tg-text-color)}
+.tg-sep{height:1px;background:color-mix(in srgb, var(--tg-text-color) 12%, transparent)}
+.tg-wrap{padding:10px}
 
-/* lists & cards */
-.cb-wrap{padding:14px 0}
-.cb-sub{opacity:.75;margin:2px 0 10px;text-align:left}
-.cb-loading{opacity:.8;text-align:center;padding:24px}
-.cb-spin{width:28px;height:28px;border-radius:50%;margin:0 auto 10px;border:3px solid #2b3441;
-  border-top-color:var(--tg-theme-button-color,var(--accent));animation:spin 1s linear infinite}
+/* =========================================================
+   Generic loader & toast
+   ========================================================= */
+.tg-loading{display:flex;align-items:center;gap:10px;padding:12px}
+.tg-spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite}
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+  background:var(--panel);color:var(--text);border:1px solid var(--line);
+  border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px #0007;z-index:9999;display:none
+}
 @keyframes spin{to{transform:rotate(360deg)}}
-.cb-list{display:flex;flex-direction:column;gap:10px}
-.cb-card{display:flex;align-items:center;gap:14px;padding:14px;border-radius:14px;background:var(--panel);
-  border:1px solid var(--line);cursor:pointer}
-.cb-card:hover{border-color:#2f7de7;background:#0f1b2b}
-.cb-ava{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,#2f7de7,#4a9cff);color:#fff;font-weight:700}
-.cb-info{flex:1}
-.cb-name{font-weight:600}
-.cb-status{opacity:.75;font-size:13px;margin-top:3px}
-.cb-dot{width:8px;height:8px;border-radius:50%;background:#2ecc71}
-.cb-dot.off{background:var(--muted)}
-.cb-arrow{opacity:.75;margin-left:6px}
 
-/* loader */
+/* Fullscreen overlay loader (optional) */
 .loader{display:none;position:fixed;inset:0;background:#0006;align-items:center;justify-content:center;z-index:9999}
 .loader .dot{width:10px;height:10px;margin:6px;border-radius:50%;background:var(--accent);animation:pulse .9s infinite alternate}
 .loader .dot:nth-child(2){animation-delay:.15s}
 .loader .dot:nth-child(3){animation-delay:.3s}
 @keyframes pulse{from{transform:scale(.8);opacity:.6} to{transform:scale(1.25);opacity:1}}
 
-/* toast */
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--panel);
-  color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px #0007;z-index:9999;display:none}
+/* =========================================================
+   Booking: list, cards, statuses, actions
+   ========================================================= */
 
-/* legacy tiny buttons reused inside cards */
-.backbtn{background:#223244;color:var(--text);border:0;border-radius:12px;padding:8px 10px;cursor:pointer}
+/* Список без внешней рамки */
+.tg-list.no-frame{
+  display:grid; gap:14px;
+  border:0 !important; box-shadow:none !important; background:transparent !important; outline:none !important;
+  padding-top:6px
+}
 
-/* календарный список дат/времени (канва-стиль) */
+/* Карточка */
+.tg-cell{
+  position:relative;
+  display:grid; grid-template-columns:1fr auto; align-items:start; gap:12px;
+  padding:14px 16px; margin:10px 0;
+  border-radius:16px;
+  background:var(--tg-secondary-bg-color, #f5f7fa);
+  border:1px solid rgba(0,0,0,.06);
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+  animation:fadeSlideIn .38s cubic-bezier(.2,.8,.2,1) both;
+  transition:box-shadow .2s ease, transform .2s ease
+}
+.tg-cell:hover{ box-shadow:0 3px 6px rgba(0,0,0,.08), 0 8px 14px rgba(0,0,0,.06); transform:translateY(-1px) }
+
+/* Контент карточки */
+.tg-main{ flex:1; min-width:0 }
+.tg-name{
+  color:var(--tg-text-color, #0f172a); font-weight:800; font-size:18px; line-height:1.1; margin:0 0 2px
+}
+.tg-sub{ color:#6b7280; margin-top:4px }
+.tg-right{ display:flex; align-items:center; gap:8px; margin-left:auto }
+
+/* Кнопка “Отменить” (компактная) */
+.tg-action{
+  appearance:none; cursor:pointer;
+  border:1px solid rgba(0,0,0,.12);
+  background:rgba(0,0,0,.04);
+  color:inherit; font-weight:600; font-size:13px;
+  padding:8px 12px; border-radius:10px;
+  transition:border-color .15s ease, background .15s ease, color .15s ease, transform .1s ease
+}
+.tg-action:hover{ border-color:rgba(230,90,90,.6); color:rgb(230,90,90); background:rgba(230,90,90,.06) }
+.tg-action:active{ transform:translateY(1px) }
+
+/* Бэйдж статуса (цвет — через модификатор) */
+.tg-status{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 12px; border-radius:999px; font-weight:600; font-size:13px; line-height:1;
+  border:1px solid currentColor; background:transparent; margin-top:10px
+}
+.tg-status .dot{ width:8px; height:8px; border-radius:50%; background:currentColor }
+
+/* Цветовые модификаторы статуса */
+.tg-status.active{
+  color:rgb(80,200,120);
+  background:rgba(80,200,120,.12);
+  border-color:rgba(80,200,120,.35)
+}
+.tg-status.pending{
+  color:rgb(255,170,50);
+  background:rgba(255,170,50,.12);
+  border-color:rgba(255,170,50,.35)
+}
+.tg-status.rejected{
+  color:rgb(230,90,90);
+  background:rgba(230,90,90,.10);
+  border-color:rgba(230,90,90,.35)
+}
+.tg-status.completed{
+  color:rgba(120,130,140,.95);
+  background:rgba(120,130,140,.10);
+  border-color:rgba(120,130,140,.28)
+}
+
+/* Dark scheme adaptation */
+@media (prefers-color-scheme: dark){
+  .tg-cell{ background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.08); box-shadow:0 1px 2px rgba(0,0,0,.3), 0 2px 4px rgba(0,0,0,.25) }
+  .tg-cell:hover{ box-shadow:0 3px 6px rgba(0,0,0,.4), 0 6px 12px rgba(0,0,0,.3) }
+  .tg-action{ border-color:rgba(255,255,255,.08); background:rgba(255,255,255,.04) }
+}
+
+/* =========================================================
+   Date & time slots
+   ========================================================= */
 .dates-list{display:flex;flex-direction:column;gap:20px}
 .date-section{background:var(--tg-theme-secondary-bg-color,var(--panel-2));border-radius:16px;padding:20px;border:1px solid var(--line)}
 .date-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
-.date-number{width:48px;height:48px;background:var(--tg-theme-button-color,var(--accent));color:#fff;border-radius:12px;
-  display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+.date-number{
+  width:48px;height:48px;background:var(--tg-theme-button-color,var(--accent));color:#fff;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700
+}
 .date-info{flex:1}
 .date-day{font-size:16px;font-weight:600}
 .date-month{font-size:14px;color:var(--muted)}
 .time-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px}
-.time-slot{background:var(--tg-theme-bg-color,#0f1520);border:1px solid var(--line);border-radius:8px;padding:12px 8px;
-  text-align:center;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.time-slot{
+  background:var(--tg-theme-bg-color,#0f1520);border:1px solid var(--line);border-radius:8px;padding:12px 8px;
+  text-align:center;font-size:14px;font-weight:600;cursor:pointer;transition:.15s
+}
 .time-slot:hover{background:var(--tg-theme-button-color,var(--accent));color:var(--tg-theme-button-text-color,#fff);border-color:var(--tg-theme-button-color,var(--accent));transform:translateY(-1px)}
-.time-slot.occupied{background:#0f1520; color:var(--muted); border-color:#223244; cursor:not-allowed; opacity:.6}
+.time-slot.occupied{background:#0f1520;color:var(--muted);border-color:#223244;cursor:not-allowed;opacity:.6}
 .time-slot.occupied:hover{transform:none}
 
-/* плавное появление секций */
-.slide-in{animation:slideIn .4s ease-out both}
-@keyframes slideIn{from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:none}}
-
-.slide-in { animation: slideIn .4s ease-out both }
-@keyframes slideIn { from { opacity:0; transform: translateX(-20px) } to { opacity:1; transform:none } }
-
+/* =========================================================
+   Confirm page
+   ========================================================= */
 .confirm-wrap{display:flex;flex-direction:column;gap:16px}
 .confirmation-question{text-align:center;margin-bottom:8px}
 .question-title{font-size:24px;font-weight:700;margin:0 0 6px}
 .question-subtitle{font-size:16px;color:var(--muted)}
 .booking-details{display:flex;flex-direction:column;gap:12px;margin:8px 0 16px}
-
-.detail-card{background:var(--tg-theme-secondary-bg-color,var(--panel-2));
-  border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px}
+.detail-card{
+  background:var(--tg-theme-secondary-bg-color,var(--panel-2));
+  border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px
+}
 .detail-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff}
 .service-icon{background:linear-gradient(135deg,#FF6B6B,#FF8E8E)}
 .time-icon{background:linear-gradient(135deg,#4ECDC4,#6BCCC4)}
@@ -116,414 +258,95 @@ body{
 .detail-info{flex:1}
 .detail-label{font-size:13px;color:var(--muted);margin-bottom:3px}
 .detail-value{font-size:16px;font-weight:600}
-
 .actions{display:flex;flex-direction:column;gap:12px}
-.action-button{width:100%;padding:16px 24px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
 .confirm-button{background:#4CAF50;color:#fff;box-shadow:0 2px 8px rgba(76,175,80,.3)}
 .confirm-button:hover{background:#45A049;transform:translateY(-1px);box-shadow:0 4px 12px rgba(76,175,80,.4)}
 .cancel-button{background:transparent;color:var(--text);border:1px solid var(--line)}
 .cancel-button:hover{background:#223244;transform:translateY(-1px)}
 
-/* animations reused */
-.fade-in{animation:fadeIn .6s ease-out}
-@keyframes fadeIn{from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none}}
-.slide-in{animation:slideIn .5s ease-out}
-@keyframes slideIn{from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:none}}
-.scale-in{animation:scaleIn .4s ease-out}
-@keyframes scaleIn{from{opacity:0;transform:scale(.9)} to{opacity:1;transform:scale(1)}}
-
-
-/* ===== My Bookings ===== */
-.subtitle{ text-align:center; color:var(--tg-theme-hint-color,#999); font-size:16px; margin-bottom:16px; }
-.bookings-list{ display:flex; flex-direction:column; gap:16px; }
-.booking-card{ background:var(--tg-theme-secondary-bg-color,#f8f9fa); border:1px solid var(--tg-theme-hint-color,#e1e1e1);
-  border-radius:16px; padding:20px; position:relative; overflow:hidden; }
-.booking-card.active{ border-color:var(--tg-theme-button-color,#3390ec); background:linear-gradient(135deg,rgba(51,144,236,.05),rgba(51,144,236,.02)); }
-.booking-card.completed{ border-color:#4CAF50; background:linear-gradient(135deg,rgba(76,175,80,.05),rgba(76,175,80,.02)); }
-.booking-card.cancelled{ border-color:#FF5722; background:linear-gradient(135deg,rgba(255,87,34,.05),rgba(255,87,34,.02)); }
-
-.booking-status{ position:absolute; top:16px; right:16px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:500; }
-.status-active{ background:var(--tg-theme-button-color,#3390ec); color:#fff; }
-.status-completed{ background:#4CAF50; color:#fff; }
-.status-cancelled{ background:#FF5722; color:#fff; }
-
-.booking-header{ display:flex; align-items:center; gap:16px; margin-bottom:16px; padding-right:80px; }
-.booking-icon{ width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; }
-.booking-icon.active{ background:linear-gradient(135deg,var(--tg-theme-button-color,#3390ec),#5BA3F5); }
-.booking-icon.completed{ background:linear-gradient(135deg,#4CAF50,#66BB6A); }
-.booking-icon.cancelled{ background:linear-gradient(135deg,#FF5722,#FF7043); }
-
-.booking-service{ font-size:16px; font-weight:600; margin-bottom:4px; color:var(--tg-theme-text-color,#000); }
-.booking-time,.booking-master{ font-size:14px; color:var(--tg-theme-hint-color,#999); }
-
-.booking-actions{ margin-top:16px; padding-top:16px; border-top:1px solid var(--tg-theme-hint-color,#e1e1e1); }
-.cancel-button{ background:#FF5722; color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:500; cursor:pointer; transition:.15s; }
-.cancel-button:hover{ background:#E64A19; transform:translateY(-1px); }
-
-.empty-state{ text-align:center; padding:60px 20px; color:var(--tg-theme-hint-color,#999); }
-.empty-icon{ font-size:48px; margin-bottom:16px; opacity:.5; }
-.empty-title{ font-size:18px; font-weight:500; margin-bottom:8px; }
-.empty-subtitle{ font-size:14px; line-height:1.4; }
-
-.loading{ text-align:center; padding:40px 20px; color:var(--tg-theme-hint-color,#999); }
-.loading-spinner{ width:32px; height:32px; border:3px solid var(--tg-theme-hint-color,#e1e1e1); border-top:3px solid var(--tg-theme-button-color,#3390ec);
-  border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 16px; }
-@keyframes spin{ to{ transform:rotate(360deg) } }
-
-.mp-more{margin-top:8px;border:1px solid #223142;background:#0c141d;color:#eaf2ff;padding:10px 12px;border-radius:10px;cursor:pointer}
-.mp-more:disabled{opacity:.6;cursor:default}
-
+/* =========================================================
+   Extras (portfolio load button, slots grid)
+   ========================================================= */
+.mp-more{margin-top:10px;width:100%;padding:10px;border-radius:12px;border:1px solid #223142;background:#13202c;color:#eaf2ff}
+.mp-more:disabled{opacity:.6;cursor:not-allowed}
 .mp-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.slot-chip{padding:8px 10px;border-radius:10px;background:#13202c;border:1px solid #223142;
-  text-align:center;cursor:pointer}
+.slot-chip{padding:8px 10px;border-radius:10px;background:#13202c;border:1px solid #223142;text-align:center;cursor:pointer}
 .slot-chip small{display:block;opacity:.8;margin-top:2px}
 @media(min-width:480px){ .mp-slots{grid-template-columns:repeat(4,1fr)} }
 
-.mp-more{margin-top:10px;width:100%;padding:10px;border-radius:12px;border:1px solid #223142;background:#13202c;color:#eaf2ff}
-.mp-more:disabled{opacity:.6;cursor:not-allowed}
-
-/* ===== Telegram theme-driven vars (fallbacks) ===== */
-:root{
-  --tg-bg-color: #0e1621;
-  --tg-secondary-bg-color: #0b131b;
-  --tg-text-color: #e0e9f2;
-  --tg-hint-color: rgba(224,233,242,.65);
-  --tg-link-color: #6ab3f3;
-  --tg-button-color: #2ea6ff;
-  --tg-button-text-color: #ffffff;
-
-  --card-bd: color-mix(in srgb, var(--tg-text-color) 8%, transparent);
-  --card-bg: var(--tg-secondary-bg-color);
-  --shadow: 0 12px 36px color-mix(in srgb, #000 38%, transparent);
-  --r-xl: 20px; --r-lg: 14px;
-}
-
-/* ===== Welcome screen ===== */
-.welcome-wrap{
-  min-height: 100vh;
-  width: 100%;
-  background: var(--tg-bg-color);
-  color: var(--tg-text-color);
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  box-sizing: border-box;
-}
-
-.welcome-shell{
-  width: 100%;
-  max-width: 560px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-bd);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow);
-  padding: 22px 16px 18px;
-  display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
-}
-
-.sticker-slot{
-  width: 128px; height: 128px;
-  margin: 6px auto 8px;
-  border-radius: 26px;
-  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--tg-text-color) 16%, transparent);
-  display: grid; place-items: center;
-  overflow: hidden;
-}
-.sticker-slot img, .sticker-slot svg{ width:100%; height:100%; object-fit:contain; }
-.sticker-placeholder{ opacity:.5; font-size:12px; }
-
-.welcome-title{
-  text-align:center;
-  font-weight: 800;
-  font-size: 24px;
-  letter-spacing: .2px;
-  margin: 8px 0 4px;
-}
-.welcome-subtitle{
-  text-align:center;
-  opacity:.85;
-  margin: 0 0 4px;
-}
-
-/* опускаем кнопки «ниже» */
-.welcome-actions{
-  margin-top: clamp(28px, 22vh, 34vh);
-  display: grid;
-  gap: 12px;
-}
-.welcome-actions button {
-  opacity: 0;
-  transform: translateY(10px);
-  animation: fadeInUp 0.5s ease-out forwards;
-}
-
-.welcome-actions button:nth-child(1) {
-  animation-delay: 0.4s;
-}
-.welcome-actions button:nth-child(2) {
-  animation-delay: 0.55s;
-}
-
-/* Telegram-style buttons from themeParams */
-.tg-btn{
-  display:flex; align-items:center; justify-content:center; gap:10px;
-  width:100%; height:52px; border-radius:14px; border:0;
-  font-weight:800; font-size:16px; letter-spacing:.2px;
-  cursor:pointer;
-  transition: transform .06s ease, filter .12s ease, box-shadow .12s ease;
-}
-.tg-btn.primary{
-  background: var(--tg-button-color);
-  color: var(--tg-button-text-color);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--tg-button-color) 42%, transparent);
-}
-.tg-btn.secondary{
-  background: color-mix(in srgb, var(--tg-button-color) 12%, var(--tg-secondary-bg-color));
-  color: var(--tg-text-color);
-  border: 1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
-}
-.tg-btn:active{ transform: translateY(1px); filter: brightness(.96); }
-
-.welcome-foot{
-  margin-top: 14px;
-  text-align:center;
-  font-size: 13px;
-  color: var(--tg-hint-color);
-}
-
-/* На очень узких экранах снижаем отступ «опускания» */
-@media (max-height: 660px){
-  .welcome-actions{ margin-top: 22px; }
-}
-
-
-.sticker-slot {
-  width: 140px;
-  height: 140px;
-  border-radius: 16px;
-  background: transparent;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: visible;
-  margin: 0 auto 12px;
-}
-.sticker-slot svg { width: 100%; height: 100%; display: block; }
-
-
-.welcome-shell {
-  opacity: 0;
-  transform: translateY(20px);
-  animation: fadeInUp 0.6s ease-out forwards;
-}
-
-.welcome-shell .sticker-slot {
-  animation: popIn 0.8s cubic-bezier(.5,1.5,.5,1) forwards;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes popIn {
-  0% { transform: scale(0.6); opacity: 0; }
-  80% { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(1); }
-}
-
-.tg { color: var(--tg-text-color); }
-.tg a { color: var(--tg-link-color); }
-
-.tg-header{display:flex;align-items:center;gap:10px;padding:12px 14px}
-.tg-title {
-  color: var(--tg-text-color);
-}
-.tg-back{background:transparent;border:0;color:var(--tg-link-color);font-size:18px;line-height:1;padding:6px 8px;border-radius:10px}
-.tg-back:active{background:color-mix(in srgb, var(--tg-text-color) 10%, transparent)}
-.tg-title{font-weight:700}
-.tg-sep{height:1px;background:color-mix(in srgb, var(--tg-text-color) 12%, transparent)}
-.tg-wrap{padding:10px}
-
-.tg-loading{display:flex;align-items:center;gap:10px;padding:12px}
-.tg-spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:tgspin .8s linear infinite}
-@keyframes tgspin{to{transform:rotate(360deg)}}
-
+/* =========================================================
+   Empty state (bookings)
+   ========================================================= */
 .tg-empty{display:grid;justify-items:center;gap:10px;padding:32px 10px;text-align:center}
 .tg-empty-emoji{font-size:42px}
 .tg-empty-title{font-weight:700;color:var(--tg-text-color)}
 .tg-empty-sub{color:color-mix(in srgb, var(--tg-text-color) 65%, transparent)}
+.empty-anim{ width:112px;height:112px;border-radius:16px;background:transparent;border:none;display:grid;place-items:center;overflow:hidden;margin:6px 0 12px }
 
-.tg-btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:14px;padding:12px 16px;font-weight:700}
-.tg-btn.primary{background:var(--tg-button-color);color:var(--tg-button-text-color)}
-.tg-btn.primary:active{filter:brightness(.96)}
+/* =========================================================
+   Animations (unified)
+   ========================================================= */
+@keyframes fadeInUp{ from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+@keyframes popIn{ 0%{transform:scale(.6);opacity:0} 80%{transform:scale(1.05);opacity:1} 100%{transform:scale(1)} }
+@keyframes fadeSlideIn{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
 
-.tg-list{
-  display:grid;border-radius:14px;overflow:hidden;
-  border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
-}
-.tg-cell{
-  display:flex;align-items:center;gap:12px;padding:12px 14px;
-  background:var(--tg-secondary-bg-color);
-}
-.tg-cell + .tg-cell{border-top:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent)}
-
-.tg-ico{
-  width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px;
-  background:color-mix(in srgb, var(--tg-text-color) 8%, transparent);
-}
-.tg-main{flex:1;min-width:0}
-.tg-title-row{display:flex;align-items:center;gap:8px}
-.tg-name{font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tg-sub{font-size:12px;color:color-mix(in srgb, var(--tg-text-color) 65%, transparent);margin-top:2px}
-
-.tg-right{display:grid;justify-items:end;gap:4px}
-.tg-time{font-size:12px;color:color-mix(in srgb, var(--tg-text-color) 65%, transparent)}
-
-.tg-badge{
-  font-size:12px;line-height:1;padding:6px 8px;border-radius:999px;
-  border:1px solid color-mix(in srgb, var(--tg-text-color) 18%, transparent);
-}
-.tg-badge.active{
-  background:color-mix(in srgb, var(--tg-link-color) 16%, transparent);
-  border-color:color-mix(in srgb, var(--tg-link-color) 28%, transparent);
-}
-.tg-badge.completed{
-  background:color-mix(in srgb, #42b983 16%, transparent);
-  border-color:color-mix(in srgb, #42b983 28%, transparent);
-}
-.tg-badge.cancelled{
-  background:color-mix(in srgb, #e85d5d 16%, transparent);
-  border-color:color-mix(in srgb, #e85d5d 28%, transparent);
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .welcome-shell,.sticker-slot,.tg-cell,.tg-btn{ animation:none; transform:none }
 }
 
-
-
-.empty-anim{
-  width: 112px;
-  height: 112px;
-  border-radius: 16px;
-  background: transparent;
-  border: none;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  margin: 6px 0 12px;
-}
-.empty-anim svg, .empty-anim canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
+/* ===== Wallet-like light skin (серый фон + белые карточки) ===== */
+:root{
+  --wallet-bg-light: #f2f3f5;
+  --wallet-card: #ffffff;
+  --wallet-stroke: rgba(0,0,0,.06);
+  --wallet-shadow-1: 0 1px 2px rgba(0,0,0,.04);
+  --wallet-shadow-2: 0 8px 20px rgba(0,0,0,.05);
 }
 
-.tg-list.no-frame {
-  border: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  outline: none !important;
-  position: relative;
+/* Светлая тема */
+@media (prefers-color-scheme: light){
+  html, body{
+    background: var(--wallet-bg-light) !important; /* серый фон контейнера */
+  }
+  .cb-header, .tg-header{ background: transparent !important; }
+  .tg-sep{ background: rgba(0,0,0,.08) !important; }
+  .tg-wrap{ padding: 10px 12px 22px !important; }
+
+  /* убираем рамку у списка и добавляем интервал между карточками */
+  .tg-list.no-frame{
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    gap: 14px !important;
+    padding-top: 8px !important;
+  }
+
+  /* белые карточки «как в Кошельке» */
+  .tg-list.no-frame > .tg-cell,
+  .tg-cell{
+    background: var(--wallet-card) !important;
+    border: 1px solid var(--wallet-stroke) !important;
+    box-shadow: var(--wallet-shadow-1), var(--wallet-shadow-2) !important;
+    border-radius: 16px !important;
+    padding: 14px 16px !important;
+  }
+
+  .tg-sub{ color:#667085 !important; }
+
+  .tg-action{
+    background: #f6f7f9 !important;
+    border-color: var(--wallet-stroke) !important;
+    color: #667085 !important;
+  }
+  .tg-action:hover{
+    background: #fff0f0 !important;
+    border-color: rgba(230,90,90,.45) !important;
+    color:#b00020 !important;
+  }
 }
 
-.tg-list.no-frame::before,
-.tg-list.no-frame::after {
-  content: none !important;
+/* Тёмная тема — оставляем ваш текущий стиль; только фикс фона */
+@media (prefers-color-scheme: dark){
+  html, body{ background: var(--tg-bg-color, #0e1621) !important; }
 }
-
-.tg-wrap { padding-top: 8px; }
-
-.tg-cell {
-  background: var(--tg-theme-bg-color, #fff);
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.04);
-  padding: 14px 16px;
-}
-
-.tg-status {
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 12px; border-radius:999px; font-weight:600; font-size:14px;
-  background: rgba(80,200,120,.12);
-  color: #2a6a45;
-  border:1px solid rgba(80,200,120,.28);
-}
-.tg-status .dot{
-  width:8px; height:8px; border-radius:50%;
-  background: rgb(80,200,120);
-}
-
-.tg-action {
-  padding:6px 10px; border-radius:10px;
-  border:1px solid rgba(0,0,0,.08);
-  background: rgba(0,0,0,.03);
-  color: #666; font-weight:600; font-size:13px;
-  transition: .15s;
-}
-.tg-action:hover { background: rgba(255,0,0,.06); border-color: rgba(255,0,0,.35); color:#b00020; }
-.tg-right { display:flex; align-items:center; gap:8px; }
-.tg-main  { flex:1; }
-.tg-cell { display:flex; gap:12px; align-items:flex-start; }
-.tg-name { font-weight:800; font-size:18px; line-height:1.1; }
-.tg-sub  { color:#6b7280; margin-top:4px; }
-
-.tg-list.no-frame {
-  display: grid;
-  gap: 14px;              /* расстояние между карточками */
-  padding-top: 10px;      /* от линии под заголовком */
-}
-
-.tg-cell {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  background: var(--tg-secondary-bg-color, #f4f6f8);
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.04);
-  padding: 14px 16px;
-}
-
-.tg-name {
-  color: var(--tg-text-color, #0f172a) !important;
-  opacity: 1 !important;
-  font-weight: 800;
-  font-size: 18px;
-  line-height: 1.1;
-  margin: 0 0 2px 0;
-}
-
-.tg-sub {
-  color: #6b7280;
-  margin-top: 4px;
-}
-
-.tg-status {
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 12px; border-radius:999px; font-weight:600; font-size:14px;
-  background: rgba(80,200,120,.12);
-  color: #2a6a45;
-  border:1px solid rgba(80,200,120,.28);
-  margin-top: 10px;
-}
-.tg-status .dot{
-  width:8px; height:8px; border-radius:50%;
-  background: rgb(80,200,120);
-}
-
-.tg-right { display:flex; align-items:center; gap:8px; margin-left:auto; }
-.tg-action {
-  padding:6px 10px; border-radius:10px;
-  border:1px solid rgba(0,0,0,.08);
-  background: rgba(0,0,0,.03);
-  color: #666; font-weight:600; font-size:13px;
-  transition: .15s;
-}
-.tg-action:hover { background: rgba(255,0,0,.06); border-color: rgba(255,0,0,.35); color:#b00020; }

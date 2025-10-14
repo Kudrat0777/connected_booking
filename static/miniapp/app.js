@@ -999,11 +999,18 @@ async function showMyBookings(){
 
   const fmtTime  = (d)=> d ? new Date(d).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
   const fmtDate  = (d)=> d ? new Date(d).toLocaleDateString('ru-RU',{day:'2-digit', month:'long'}) : '';
+
+  // нормализация статуса
   const classify = (b)=>{
-    if (b.status === 'rejected') return {cls:'cancelled', text:'Отклонена'};
+    const raw = (b.status || 'pending').toLowerCase();
     const ts = b.slot?.time ? new Date(b.slot.time).getTime() : 0;
-    if (ts && ts < Date.now()) return {cls:'completed', text:'Выполнена'};
-    return {cls:'active', text:'Активна'};
+    const inPast = ts && ts < Date.now();
+
+    if (raw === 'rejected') return {key:'rejected', text:'Отклонена'};
+    if (raw === 'confirmed') return inPast ? {key:'completed', text:'Выполнена'} : {key:'active', text:'Активна'};
+    if (raw === 'pending') return {key:'pending', text:'Ожидает подтверждения'};
+    // fallback
+    return inPast ? {key:'completed', text:'Выполнена'} : {key:'pending', text:'Ожидает подтверждения'};
   };
 
   $list.style.display = 'grid';
@@ -1011,25 +1018,27 @@ async function showMyBookings(){
   bookings
     .slice()
     .sort((a,b)=> new Date(b.slot?.time||0) - new Date(a.slot?.time||0))
-    .forEach((b)=>{
+    .forEach((b, idx)=>{
       const svc    = b.slot?.service?.name || 'Услуга';
       const master = b.slot?.service?.master?.name || b.slot?.service?.master_name || b.master_name || b.master || '—';
       const when   = b.slot?.time || null;
-      const {text} = classify(b);
+      const {key, text} = classify(b);
       const isFuture = when && new Date(when).getTime() > Date.now();
 
       const cell = document.createElement('div');
       cell.className = 'tg-cell';
+      cell.style.animationDelay = `${idx * 60}ms`;   // лёгкий «стаггер»
+
       cell.innerHTML = `
         <div class="tg-main">
           <div class="tg-name">${svc}</div>
           <div class="tg-sub">${fmtTime(when)}${when ? ' • ' + fmtDate(when) : ''} • Мастер: ${master}</div>
-          <div class="tg-status" style="margin-top:10px">
+          <div class="tg-status ${key}" style="margin-top:10px">
             <span class="dot"></span><span>${text}</span>
           </div>
         </div>
         <div class="tg-right">
-          ${isFuture ? `<button class="tg-action" data-id="${b.id}">Отменить</button>` : ``}
+          ${isFuture && key !== 'rejected' ? `<button class="tg-action" data-id="${b.id}">Отменить</button>` : ``}
         </div>
       `;
       $list.appendChild(cell);
