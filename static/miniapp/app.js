@@ -19,7 +19,8 @@ function applyThemeVars() {
   const tp = tg?.themeParams || {};
   const root = document.documentElement;
 
-  // ключи из доков: https://core.telegram.org/bots/webapps#themeparams
+  root.setAttribute('data-theme', tg?.colorScheme || 'dark');
+
   root.style.setProperty('--tg-bg-color', tp.bg_color || '#0e1621');
   root.style.setProperty('--tg-secondary-bg-color', tp.secondary_bg_color || '#0b131b');
   root.style.setProperty('--tg-text-color', tp.text_color || '#e0e9f2');
@@ -27,10 +28,9 @@ function applyThemeVars() {
   root.style.setProperty('--tg-link-color', tp.link_color || '#6ab3f3');
   root.style.setProperty('--tg-button-color', tp.button_color || '#2ea6ff');
   root.style.setProperty('--tg-button-text-color', tp.button_text_color || '#ffffff');
-
   try {
     tg?.setHeaderColor(tg.colorScheme === 'dark' ? '#0e1621' : '#ffffff');
-    tg?.setBackgroundColor('secondary_bg_color'); // поддерживается доками
+    tg?.setBackgroundColor('secondary_bg_color');
   } catch(_) {}
 }
 try {
@@ -970,7 +970,7 @@ async function showMyBookings(){
         <div>Загружаем ваши брони…</div>
       </div>
 
-      <div id="bookingsList" class="tg-list" style="display:none"></div>
+      <div id="bookingsList" class="tg-list no-frame" style="display:none"></div>
 
       <div id="emptyState" class="tg-empty" style="display:none">
         <div id="emptyAnim" class="empty-anim" aria-hidden="true"></div>
@@ -999,16 +999,8 @@ async function showMyBookings(){
 
   const fmtTime  = (d)=> d ? new Date(d).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
   const fmtDate  = (d)=> d ? new Date(d).toLocaleDateString('ru-RU',{day:'2-digit', month:'long'}) : '';
-  const serviceIcon = (name='')=>{
-    if (name.includes('Стриж')) return '✂️';
-    if (name.includes('Окраш')) return '🎨';
-    if (name.includes('Маник')) return '💅';
-    if (name.includes('Педик')) return '🦶';
-    if (name.includes('Массаж')) return '💆';
-    return '✨';
-  };
   const classify = (b)=>{
-    if (b.status === 'rejected') return {cls:'cancelled', text:'Отменена'};
+    if (b.status === 'rejected') return {cls:'cancelled', text:'Отклонена'};
     const ts = b.slot?.time ? new Date(b.slot.time).getTime() : 0;
     if (ts && ts < Date.now()) return {cls:'completed', text:'Выполнена'};
     return {cls:'active', text:'Активна'};
@@ -1021,27 +1013,23 @@ async function showMyBookings(){
     .sort((a,b)=> new Date(b.slot?.time||0) - new Date(a.slot?.time||0))
     .forEach((b)=>{
       const svc    = b.slot?.service?.name || 'Услуга';
-      const master = b.slot?.service?.master?.name || '—';
+      const master = b.slot?.service?.master?.name || b.slot?.service?.master_name || b.master_name || b.master || '—';
       const when   = b.slot?.time || null;
-      const {cls, text} = classify(b);
-      const ts = when ? new Date(when).getTime() : 0;
-      const isFuture = ts && ts > Date.now();
+      const {text} = classify(b);
+      const isFuture = when && new Date(when).getTime() > Date.now();
 
       const cell = document.createElement('div');
       cell.className = 'tg-cell';
       cell.innerHTML = `
-        <div class="tg-ico" aria-hidden="true">${serviceIcon(svc)}</div>
         <div class="tg-main">
-          <div class="tg-title-row">
-            <div class="tg-name">${svc}</div>
-          </div>
-          <div class="tg-sub">
-            ${fmtTime(when)}${when ? ' • ' + fmtDate(when) : ''} • Мастер: ${master}
+          <div class="tg-name">${svc}</div>
+          <div class="tg-sub">${fmtTime(when)}${when ? ' • ' + fmtDate(when) : ''} • Мастер: ${master}</div>
+          <div class="tg-status" style="margin-top:10px">
+            <span class="dot"></span><span>${text}</span>
           </div>
         </div>
         <div class="tg-right">
-          <div class="tg-badge ${cls}">${text}</div>
-          ${cls==='active' && isFuture ? `<button class="tg-action" data-id="${b.id}">Отменить</button>` : ``}
+          ${isFuture ? `<button class="tg-action" data-id="${b.id}">Отменить</button>` : ``}
         </div>
       `;
       $list.appendChild(cell);
