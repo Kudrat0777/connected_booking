@@ -290,12 +290,10 @@ body{
 @keyframes popIn{ 0%{transform:scale(.6);opacity:0} 80%{transform:scale(1.05);opacity:1} 100%{transform:scale(1)} }
 @keyframes fadeSlideIn{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce){
   .welcome-shell,.sticker-slot,.tg-cell,.tg-btn{ animation:none; transform:none }
 }
 
-/* ===== Wallet-like light skin (серый фон + белые карточки) ===== */
 :root{
   --wallet-bg-light: #f2f3f5;
   --wallet-card: #ffffff;
@@ -304,16 +302,14 @@ body{
   --wallet-shadow-2: 0 8px 20px rgba(0,0,0,.05);
 }
 
-/* Светлая тема */
 @media (prefers-color-scheme: light){
   html, body{
-    background: var(--wallet-bg-light) !important; /* серый фон контейнера */
+    background: var(--wallet-bg-light) !important;
   }
   .cb-header, .tg-header{ background: transparent !important; }
   .tg-sep{ background: rgba(0,0,0,.08) !important; }
   .tg-wrap{ padding: 10px 12px 22px !important; }
 
-  /* убираем рамку у списка и добавляем интервал между карточками */
   .tg-list.no-frame{
     border: 0 !important;
     box-shadow: none !important;
@@ -322,7 +318,6 @@ body{
     padding-top: 8px !important;
   }
 
-  /* белые карточки «как в Кошельке» */
   .tg-list.no-frame > .tg-cell,
   .tg-cell{
     background: var(--wallet-card) !important;
@@ -346,7 +341,82 @@ body{
   }
 }
 
-/* Тёмная тема — оставляем ваш текущий стиль; только фикс фона */
 @media (prefers-color-scheme: dark){
   html, body{ background: var(--tg-bg-color, #0e1621) !important; }
 }
+
+.m-list { display:grid; gap:12px; }
+.m-hint { color: var(--tg-theme-hint-color, #6b7280); margin-top:6px; }
+
+.m-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--tg-secondary-bg-color, #f9fafb);
+  border: 1px solid rgba(0,0,0,.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  .m-card { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.08); }
+}
+
+.m-ava{
+  width:64px;height:64px;border-radius:16px;display:grid;place-items:center;
+  background: color-mix(in srgb, var(--tg-theme-text-color, #111) 10%, transparent);
+  font-weight:800;color:#fff;background-size:cover;background-position:center;
+}
+
+.m-name{
+  font-weight:800;font-size:18px;line-height:1.1;
+  color: var(--tg-theme-text-color, var(--text));
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.m-sub{
+  margin-top:6px;font-size:14px;
+  color: color-mix(in srgb, var(--tg-theme-text-color) 60%, transparent);
+}
+
+.m-rating{ margin-top:10px; display:flex; align-items:center; gap:8px; }
+.m-stars{ display:inline-flex; gap:2px; }
+.m-stars svg{ width:16px; height:16px; flex:0 0 16px; }
+.m-rcount{ font-size:12px; color: color-mix(in srgb, var(--tg-theme-text-color) 60%, transparent); }
+
+.m-badge{
+  position:absolute; top:10px; right:12px;
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px;
+  color: rgb(80,200,120);
+  background: rgba(80,200,120,.12);
+  border: 1px solid rgba(80,200,120,.28);
+}
+.m-badge .dot{ width:8px;height:8px;border-radius:50%;background: currentColor; }
+
+.m-actions{ margin-top:12px; display:flex; justify-content:flex-end; }
+.m-profile{
+  appearance:none; cursor:pointer;
+  border:1px solid color-mix(in srgb, var(--tg-link-color, #2ea6ff) 40%, transparent);
+  background: color-mix(in srgb, var(--tg-link-color, #2ea6ff) 12%, transparent);
+  color: var(--tg-link-color, #2ea6ff);
+  font-weight:800; font-size:14px; padding:8px 12px; border-radius:999px;
+  display:inline-flex; align-items:center; gap:8px;
+}
+.m-profile:active{ filter:brightness(.96); transform:translateY(1px); }
+
+.cb-sub.masters { color: var(--tg-theme-hint-color, #6b7280); }
+
+.m-chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px;
+  border:1px solid currentColor; background: transparent;
+}
+.m-chip .dot{ width:8px; height:8px; border-radius:50%; background: currentColor; }
+.m-chip.online{
+  color: rgb(80,200,120);
+  background: rgba(80,200,120,.12);
+  border-color: rgba(80,200,120,.28);
+}
+.m-actions{ margin-top:12px; display:flex; justify-content:flex-end; }
+

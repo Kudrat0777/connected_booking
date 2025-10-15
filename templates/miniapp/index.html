@@ -8,7 +8,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=39" />
+  <link rel="stylesheet" href="{% static 'miniapp/style.css' %}?v=40" />
 </head>
 <body>
   <div id="hero" class="welcome-wrap" style="display:flex">
@@ -32,7 +32,15 @@
 
   <div id="loader" class="loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
   <div id="toast" class="toast"></div>
+    <svg width="0" height="0" style="position:absolute;left:-9999px;top:-9999px">
+      <defs>
+        <linearGradient id="m-star-half" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="50%" stop-color="#f5c84b"/>
+          <stop offset="50%" stop-color="#d9dde3"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  <script src="{% static 'miniapp/app.js' %}?v=48"></script>
 
-  <script src="{% static 'miniapp/app.js' %}?v=47"></script>
 </body>
 </html>

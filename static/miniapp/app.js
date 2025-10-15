@@ -1,4 +1,3 @@
-// ===== Работа с Telegram WebApp и темой =====
 let tgUser = null;
 try {
   if (window.Telegram?.WebApp) {
@@ -624,79 +623,117 @@ async function showMasterPublicProfile(id){
 
 async function showMasters(){
   $content.innerHTML = `
-    <div class="cb-header">
-      <div class="cb-header__row">
-        <button class="cb-back" id="cbBack">←</button>
-        <h2 class="cb-title">Выбор мастера</h2>
-      </div>
-      <div class="cb-sep"></div>
+    <div class="tg-header">
+      <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
+      <div class="tg-title">Выбор мастера</div>
     </div>
-    <div class="cb-wrap">
-      <p class="cb-sub">Выберите мастера для записи</p>
+    <div class="tg-sep"></div>
+
+    <div class="tg-wrap">
+      <p class="cb-sub masters m-hint">Выберите мастера для записи</p>
+
       <div id="cbLoading" class="cb-loading">
         <div class="cb-spin"></div>
         <div>Загружаем список мастеров…</div>
       </div>
-      <div id="cbList" class="cb-list" style="display:none"></div>
+
+      <div id="emptyState" class="tg-empty" style="display:none">
+        <div id="emptyAnim" class="empty-anim" aria-hidden="true"></div>
+        <div class="tg-empty-title">Мастеров пока нет</div>
+        <div class="tg-empty-sub">Зайдите позже или обновите страницу</div>
+      </div>
+
+      <div id="list" class="m-list" style="display:none"></div>
     </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
+  const starSVG = (cls)=> {
+    const fill =
+      cls==='full' ? '#f5c84b' :
+      cls==='half' ? 'url(#m-star-half)' : '#d9dde3';
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
+      <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="${fill}"/>
+    </svg>`;
+  };
+  const renderStars = (val=0)=>{
+    const r = Math.max(0, Math.min(5, Number(val)||0));
+    const full = Math.floor(r);
+    const half = r - full >= 0.5 ? 1 : 0;
+    const empty = 5 - full - half;
+    return `${' '.repeat(full).replace(/ /g, starSVG('full'))}${
+            half?starSVG('half'):''}${
+            ' '.repeat(empty).replace(/ /g, starSVG('empty'))}`;
+  };
+  const specText = (m)=>{
+    const arr = Array.isArray(m?.specializations)
+      ? m.specializations.map(s=> typeof s==='string'? s : (s.name||'')).filter(Boolean)
+      : [];
+    const base = arr.length ? arr.join(' • ') : 'Специалист';
+    const exp  = Number(m?.experience_years||0);
+    return `${base}${exp?` • ${exp}+ лет`:''}`;
+  };
+
   let raw = [];
-  try {
-    // allow404 + fallback, чтобы не падало молча, и лог
-    raw = await api('/api/masters/?limit=100', undefined, { allow404:true, fallback:[] });
-  } catch (e) {
-    console.error('GET /api/masters/ failed:', e);
-    raw = [];
-  }
+  try { raw = await api('/api/masters/?limit=100', undefined, {allow404:true, fallback:[]}); }
+  catch { raw = []; }
 
-  console.log('masters payload →', raw);
   const masters = toArray(raw);
+  const $load  = document.getElementById('cbLoading');
+  const $list  = document.getElementById('list');
+  const $empty = document.getElementById('emptyState');
 
-  const loading = document.getElementById('cbLoading');
-  const list    = document.getElementById('cbList');
-  loading.style.display = 'none';
-  list.style.display    = 'flex';
+  $load.style.display='none';
 
-  if (!Array.isArray(masters) || masters.length === 0){
-    console.warn('masters parsed empty; raw payload shown above');
-    list.innerHTML = `
-      <div class="cb-card">
-        <div class="cb-info">
-          <div class="cb-name">Пока нет мастеров</div>
-          <div class="cb-status">Проверь API /api/masters/ (см. консоль)</div>
-        </div>
-      </div>`;
+  if (!Array.isArray(masters) || masters.length===0){
+    $empty.style.display='grid';
+    mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
     return;
   }
 
-  list.innerHTML = '';
-  masters.forEach(m=>{
-    const name  = m.name || 'Мастер';
-    const bio   = m.bio || m.title || m.profession || 'Доступно сегодня';
-    const online= (m.online === false) ? 'off' : '';
-    const ava   = m.avatar_url || m.avatar || m.photo_url || '';
+  $list.style.display='grid';
+  $list.innerHTML='';
+
+  masters.forEach((m, i)=>{
+    const name   = m.name || 'Мастер';
+    const ava    = m.avatar_url || m.avatar || m.photo_url || '';
+    const rating = Number(m.rating ?? m.rating_value ?? 0);
+    const revs   = Number(m.reviews_count || 0);
 
     const card = document.createElement('div');
-    card.className = 'cb-card';
+    card.className = 'm-card';
+
+    const avaStyle = ava ? `style="background-image:url('${ava}')" ` : '';
+    const avaText  = ava ? '' : (initials(name)||'M');
+
     card.innerHTML = `
-      <div class="cb-ava" ${ava ? `style="background-image:url('${ava}');background-size:cover;background-position:center"`:''}>
-        ${ava ? '' : (initials(name)||'M')}
+      <div class="m-ava" ${avaStyle}>${avaText}</div>
+
+      <div>
+        <div class="m-name">${name}</div>
+        <div class="m-sub">${specText(m)}</div>
+
+        <div class="m-rating">
+          <div class="m-stars">${renderStars(rating)}</div>
+          <div class="m-rcount">(${revs})</div>
+        </div>
+
+        <!-- вместо кнопки: статус онлайн внизу справа -->
+        <div class="m-actions">
+          <span class="m-chip online"><span class="dot"></span>Онлайн</span>
+        </div>
       </div>
-      <div class="cb-info">
-        <div class="cb-name">${name}</div>
-        <div class="cb-status">${bio}</div>
-      </div>
-      <div class="cb-dot ${online}"></div>
-      <div class="cb-arrow">→</div>
     `;
-    card.onclick = ()=>{
-      masterId  = m.id;
-      masterObj = m;
+
+    card.addEventListener('click', ()=>{
+      masterId = m.id; masterObj = m;
       navigate(()=> showMasterPublicProfile(m.id));
-    };
-    list.appendChild(card);
+    });
+
+    card.style.animation = 'tg-fade-slide-in .35s cubic-bezier(.2,.8,.2,1) both';
+    card.style.animationDelay = `${i*0.04}s`;
+
+    $list.appendChild(card);
   });
 }
 
