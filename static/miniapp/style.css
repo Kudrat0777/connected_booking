@@ -420,3 +420,57 @@ body{
 }
 .m-actions{ margin-top:12px; display:flex; justify-content:flex-end; }
 
+.ms-search-card{
+  background: var(--tg-secondary-bg-color, #f1f3f6);
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+@media (prefers-color-scheme: dark){
+  .ms-search-card{
+    background: rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.08);
+  }
+}
+
+.ms-search{
+  position: relative;
+}
+.ms-search input{
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: var(--tg-theme-bg-color, #fff);
+  color: var(--tg-text-color, #0f172a);
+  padding: 0 40px 0 40px;
+  font-size: 15px;
+  outline: none;
+  transition: box-shadow .15s, border-color .15s;
+}
+.ms-search input::placeholder{
+  color: color-mix(in srgb, var(--tg-text-color) 45%, transparent);
+}
+.ms-search input:focus{
+  border-color: color-mix(in srgb, var(--tg-link-color) 40%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tg-link-color) 22%, transparent);
+}
+
+.ms-i-left, .ms-i-right{
+  position:absolute; top:0; height:44px; display:grid; place-items:center; width:36px;
+  color: color-mix(in srgb, var(--tg-text-color) 40%, transparent);
+}
+.ms-i-left{ left:4px; }
+.ms-i-right{ right:4px; cursor:pointer; }
+.ms-i-right:hover{ color: var(--tg-link-color, #3390ec); }
+
+.ms-meta{
+  margin-top: 8px;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--tg-text-color) 60%, transparent);
+}
+
+.ms-card{ position:relative; padding:14px 16px; }
+
+.ms-online{ position:absolute; right:12px; top:12px; }

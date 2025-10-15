@@ -596,7 +596,6 @@ async function showMasterPublicProfile(id){
         numEl.textContent = `(${cur+1} отзывов)`;
       }
 
-      // очистим форму
       $revText.value = '';
       revRating = 5; updateStarsUI(revRating);
       $revHint.textContent = 'Спасибо! Ваш отзыв добавлен.'; $revHint.style.display='block';
@@ -630,30 +629,48 @@ async function showMasters(){
     <div class="tg-sep"></div>
 
     <div class="tg-wrap">
-      <p class="cb-sub masters m-hint">Выберите мастера для записи</p>
+      <p class="cb-sub" style="color:var(--tg-theme-hint-color,#6b7280);margin-top:6px">
+        Выберите мастера для записи
+      </p>
+
+      <div class="ms-search-card">
+        <div class="ms-search">
+          <span class="ms-i-left" aria-hidden="true">🔍</span>
+          <input id="msInput" type="search" autocomplete="off"
+                 placeholder="Поиск по имени, услуге или описанию…">
+          <span id="msClear" class="ms-i-right" title="Очистить" style="display:none">✕</span>
+        </div>
+        <div class="ms-meta"><span id="msFound">Найдено: 0</span></div>
+      </div>
 
       <div id="cbLoading" class="cb-loading">
         <div class="cb-spin"></div>
         <div>Загружаем список мастеров…</div>
       </div>
 
+      <div id="cbList" class="tg-list no-frame" style="display:none"></div>
+
       <div id="emptyState" class="tg-empty" style="display:none">
         <div id="emptyAnim" class="empty-anim" aria-hidden="true"></div>
-        <div class="tg-empty-title">Мастеров пока нет</div>
-        <div class="tg-empty-sub">Зайдите позже или обновите страницу</div>
+        <div class="tg-empty-title">Мастеров не найдено</div>
+        <div class="tg-empty-sub">Попробуйте изменить запрос</div>
       </div>
-
-      <div id="list" class="m-list" style="display:none"></div>
     </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  const starSVG = (cls)=> {
-    const fill =
-      cls==='full' ? '#f5c84b' :
-      cls==='half' ? 'url(#m-star-half)' : '#d9dde3';
-    return `<svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
-      <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="${fill}"/>
+  const starSVG = (type)=> {
+    const fill = (type==='full') ? '#f6c453' : (type==='half' ? 'url(#g)' : 'none');
+    const stroke = '#e2b13a';
+    return `
+    <svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:-3px">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="50%" stop-color="#f6c453"/><stop offset="50%" stop-color="transparent"/>
+        </linearGradient>
+      </defs>
+      <path d="M12 2.5l2.9 6 6.6.6-5 4.3 1.5 6.4L12 16.9 5.9 19.8 7.4 13.4 2.4 9.1l6.7-.6L12 2.5z"
+            fill="${fill}" stroke="${stroke}" stroke-width="1"/>
     </svg>`;
   };
   const renderStars = (val=0)=>{
@@ -661,79 +678,119 @@ async function showMasters(){
     const full = Math.floor(r);
     const half = r - full >= 0.5 ? 1 : 0;
     const empty = 5 - full - half;
-    return `${' '.repeat(full).replace(/ /g, starSVG('full'))}${
+    return `${'x'.repeat(full).split('').map(()=>starSVG('full')).join('')}${
             half?starSVG('half'):''}${
-            ' '.repeat(empty).replace(/ /g, starSVG('empty'))}`;
+            'x'.repeat(empty).split('').map(()=>starSVG('empty')).join('')}`;
   };
   const specText = (m)=>{
     const arr = Array.isArray(m?.specializations)
       ? m.specializations.map(s=> typeof s==='string'? s : (s.name||'')).filter(Boolean)
       : [];
-    const base = arr.length ? arr.join(' • ') : 'Специалист';
+    const base = arr.length ? arr.join(' • ') : (m.title || m.profession || 'Специалист');
     const exp  = Number(m?.experience_years||0);
     return `${base}${exp?` • ${exp}+ лет`:''}`;
   };
+  const norm = s => (s||'').toString().toLowerCase().trim();
 
+  // --- load masters ---
   let raw = [];
   try { raw = await api('/api/masters/?limit=100', undefined, {allow404:true, fallback:[]}); }
   catch { raw = []; }
 
-  const masters = toArray(raw);
+  const allMasters = toArray(raw);
   const $load  = document.getElementById('cbLoading');
-  const $list  = document.getElementById('list');
+  const $list  = document.getElementById('cbList');
   const $empty = document.getElementById('emptyState');
+  const $found = document.getElementById('msFound');
+  const $input = document.getElementById('msInput');
+  const $clear = document.getElementById('msClear');
 
-  $load.style.display='none';
+  $load.style.display = 'none';
 
-  if (!Array.isArray(masters) || masters.length===0){
-    $empty.style.display='grid';
-    mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
-    return;
-  }
+  const renderList = (arr)=>{
+    $list.innerHTML = '';
+    $found.textContent = `Найдено: ${arr.length}`;
+    if (!arr.length){
+      $list.style.display = 'none';
+      $empty.style.display = 'grid';
+      mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
+      return;
+    }
+    $empty.style.display = 'none';
+    $list.style.display = 'grid';
 
-  $list.style.display='grid';
-  $list.innerHTML='';
+    arr.forEach((m, i)=>{
+      const name   = m.name || 'Мастер';
+      const ava    = m.avatar_url || m.avatar || m.photo_url || '';
+      const rating = Number(m.rating ?? m.rating_value ?? 0);
+      const revs   = Number(m.reviews_count || 0);
 
-  masters.forEach((m, i)=>{
-    const name   = m.name || 'Мастер';
-    const ava    = m.avatar_url || m.avatar || m.photo_url || '';
-    const rating = Number(m.rating ?? m.rating_value ?? 0);
-    const revs   = Number(m.reviews_count || 0);
+      const cell = document.createElement('div');
+      cell.className = 'tg-cell ms-card';
+      cell.innerHTML = `
+        <div style="display:grid;grid-template-columns:64px 1fr;gap:12px;width:100%">
+          <div class="cb-ava" style="
+            width:56px;height:56px;border-radius:14px;
+            ${ava?`background-image:url('${ava}');background-size:cover;background-position:center;`:
+              `display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;
+               background:color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent);`}
+          ">
+            ${ava?'':(initials(name)||'M')}
+          </div>
 
-    const card = document.createElement('div');
-    card.className = 'm-card';
+          <div style="min-width:0">
+            <div class="tg-name" style="margin-right:110px">${name}</div>
+            <div class="tg-sub" style="margin-top:4px">${specText(m)}</div>
 
-    const avaStyle = ava ? `style="background-image:url('${ava}')" ` : '';
-    const avaText  = ava ? '' : (initials(name)||'M');
-
-    card.innerHTML = `
-      <div class="m-ava" ${avaStyle}>${avaText}</div>
-
-      <div>
-        <div class="m-name">${name}</div>
-        <div class="m-sub">${specText(m)}</div>
-
-        <div class="m-rating">
-          <div class="m-stars">${renderStars(rating)}</div>
-          <div class="m-rcount">(${revs})</div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+              <span>${renderStars(rating)}</span>
+              <span class="tg-sub">(${revs})</span>
+            </div>
+          </div>
         </div>
 
-        <!-- вместо кнопки: статус онлайн внизу справа -->
-        <div class="m-actions">
-          <span class="m-chip online"><span class="dot"></span>Онлайн</span>
+        <div class="ms-online">
+          <span class="tg-status active" style="padding:6px 10px">
+            <span class="dot"></span><span>Онлайн</span>
+          </span>
         </div>
-      </div>
-    `;
+      `;
 
-    card.addEventListener('click', ()=>{
-      masterId = m.id; masterObj = m;
-      navigate(()=> showMasterPublicProfile(m.id));
+      cell.addEventListener('click', ()=>{
+        masterId  = m.id; masterObj = m;
+        navigate(()=> showMasterPublicProfile(m.id));
+      });
+
+      cell.style.animationDelay = `${i*0.03}s`;
+      $list.appendChild(cell);
     });
+  };
 
-    card.style.animation = 'tg-fade-slide-in .35s cubic-bezier(.2,.8,.2,1) both';
-    card.style.animationDelay = `${i*0.04}s`;
+  renderList(allMasters);
 
-    $list.appendChild(card);
+  let timer = null;
+  const doFilter = ()=>{
+    const q = norm($input.value);
+    $clear.style.display = q ? 'grid' : 'none';
+    if (!q) { renderList(allMasters); return; }
+
+    const filtered = allMasters.filter(m=>{
+      const name = norm(m.name);
+      const bio  = norm(m.bio||'');
+      const title= norm(m.title||m.profession||'');
+      const specs = Array.isArray(m.specializations)
+        ? m.specializations.map(s=> typeof s==='string'? s : (s.name||'')).join(' ') : '';
+      return [name,bio,title,norm(specs)].some(s => s.includes(q));
+    });
+    renderList(filtered);
+  };
+
+  $input.addEventListener('input', ()=>{
+    clearTimeout(timer);
+    timer = setTimeout(doFilter, 140);
+  });
+  $clear.addEventListener('click', ()=>{
+    $input.value=''; doFilter(); $input.focus();
   });
 }
 
