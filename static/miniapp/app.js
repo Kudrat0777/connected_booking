@@ -713,7 +713,7 @@ async function showMasters(){
     if (!arr.length){
       $list.style.display = 'none';
       $empty.style.display = 'grid';
-      mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
+      mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
       return;
     }
     $empty.style.display = 'none';
