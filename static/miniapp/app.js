@@ -731,58 +731,112 @@ async function showMasters(){
 
 async function showServices(){
   $content.innerHTML = `
-    <div class="cb-header">
-      <div class="cb-header__row">
-        <button class="cb-back" id="cbBack">←</button>
-        <h2 class="cb-title">Выбор услуги</h2>
-      </div>
-      <div class="cb-sep"></div>
+    <div class="tg-header">
+      <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
+      <div class="tg-title">Выбор услуги</div>
     </div>
+    <div class="tg-sep"></div>
 
-    <div class="cb-wrap">
+    <div class="tg-wrap">
       <p class="cb-sub">Выберите услугу для записи</p>
 
       <div id="svcLoading" class="cb-loading">
-        <div class="cb-spin"></div>
+        <div class="cb-spin" aria-hidden="true"></div>
         <div>Загружаем список услуг…</div>
       </div>
 
-      <div id="svcList" class="cb-list" style="display:none"></div>
+      <div id="svcList" class="sv-list is-hidden" role="list"></div>
+
+      <div id="svcEmpty" class="tg-empty is-hidden" role="status" aria-live="polite">
+        <div id="emptyAnim" class="empty-anim" aria-hidden="true"></div>
+        <div class="tg-empty-title">Услуг пока нет</div>
+        <div class="tg-empty-sub">Зайдите позже или выберите другого мастера</div>
+      </div>
     </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  let services = [];
-  try { services = await api(`/api/services/?master=${masterId}`); } catch(_){}
+  const hide = el => el.classList.add('is-hidden');
+  const show = el => el.classList.remove('is-hidden');
 
-  const loading = document.getElementById('svcLoading');
-  const list    = document.getElementById('svcList');
-  loading.style.display = 'none';
-  list.style.display    = 'flex';
+  const $loading = document.getElementById('svcLoading');
+  const $list    = document.getElementById('svcList');
+  const $empty   = document.getElementById('svcEmpty');
 
-  if (!services.length){
-    list.innerHTML = `<div class="cb-card"><div class="cb-name">Услуг нет</div></div>`;
+  // грузим услуги
+  let raw = [];
+  try { raw = await api(`/api/services/?master=${masterId}`, undefined, {allow404:true, fallback:[]}); }
+  catch { raw = []; }
+  const services = toArray(raw);
+
+  hide($loading);
+
+  if (!Array.isArray(services) || services.length === 0){
+    show($empty);
+    // милый стикер
+    mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
     return;
   }
 
-  services.forEach((s, i)=>{
-    const card = document.createElement('div');
-    card.className = 'cb-card slide-in';
-    card.style.animationDelay = `${i*0.05}s`;
-    card.innerHTML = `
-      <div class="cb-info">
-        <div class="cb-name">${s.name}</div>
+  // хелперы форматирования
+  const fmtPrice = (v)=>{
+    const n = Number(v || 0);
+    if (!n) return '— ₽';
+    try{ return new Intl.NumberFormat('ru-RU').format(n) + ' ₽'; }
+    catch{ return `${n} ₽`; }
+  };
+  const fmtDur = (m)=>{
+    const n = Number(m || 0);
+    return n ? `${n} мин` : '0 мин';
+  };
+
+  // рендер списка
+  $list.innerHTML = '';
+  services.forEach((s)=>{
+    const name = s.name || 'Услуга';
+    const desc = s.description || '';
+    const price= fmtPrice(s.price);
+    const dur  = fmtDur(s.duration);
+
+    const cell = document.createElement('div');
+    cell.className = 'tg-cell sv-card';
+    cell.setAttribute('role','button');
+    cell.setAttribute('tabindex','0');
+    cell.setAttribute('aria-label', `${name}, ${dur}, ${price}`);
+
+    cell.innerHTML = `
+      <div class="sv-main">
+        <div class="sv-title">${name}</div>
+        ${desc ? `<div class="sv-desc">${desc}</div>` : ``}
+        <div class="sv-meta">
+          <span class="sv-chip" aria-hidden="true">⏱ ${dur}</span>
+          <span class="sv-chip" aria-hidden="true">💵 ${price}</span>
+        </div>
       </div>
-      <div class="cb-arrow">→</div>
+      <div class="sv-right">
+        <div class="sv-price">${price}</div>
+        <div class="sv-arrow" aria-hidden="true">→</div>
+      </div>
     `;
-    card.onclick = ()=>{ serviceId = s.id; serviceObj = s; navigate(showSlots); };
-    list.appendChild(card);
+
+    const go = ()=>{
+      serviceId  = s.id;
+      serviceObj = s;
+      navigate(showSlots);
+    };
+    cell.addEventListener('click', go);
+    cell.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+
+    $list.appendChild(cell);
   });
+
+  show($list);
 }
 
 
 async function showSlots(){
-  // каркас
   $content.innerHTML = `
     <div class="cb-header">
       <div class="cb-header__row">
@@ -822,7 +876,7 @@ async function showSlots(){
     label: new Date(s.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
   });
   const prepared = Array.isArray(slots)
-    ? slots.map(freeOrBusy).filter(s => s.ts >= now - 60*1000) // отсекаем прошлое
+    ? slots.map(freeOrBusy).filter(s => s.ts >= now - 60*1000)
     : [];
 
   if (!prepared.length){
@@ -848,16 +902,13 @@ async function showSlots(){
     (groups[key] ||= []).push(s);
   });
 
-  // словари дат
   const dayNames   = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
   const monthNames = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
   const today      = new Date();     const todayKey    = fmtKey(today);
   const tomorrow   = new Date(Date.now() + 86400000); const tomorrowKey = fmtKey(tomorrow);
 
-  // индекс по id для confirm
   const slotById = Object.fromEntries(prepared.map(s => [s.id, s]));
 
-  // рендер секций
   Object.keys(groups).sort().forEach((key, idx) => {
     const dt = new Date(key + 'T00:00:00');
     const dayLabel = (key === todayKey) ? 'Сегодня' : (key === tomorrowKey ? 'Завтра' : dayNames[dt.getDay()]);
@@ -888,7 +939,6 @@ async function showSlots(){
     root.appendChild(section);
   });
 
-  // клики по свободным
   root.querySelectorAll('.time-slot').forEach(el => {
     if (el.classList.contains('occupied')) return;
     el.addEventListener('click', () => {
