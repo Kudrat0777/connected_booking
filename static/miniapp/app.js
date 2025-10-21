@@ -206,26 +206,24 @@ async function showMasterPublicProfile(id){
   const mid = id ?? masterId;
 
   $content.innerHTML = `
-    <div class="cb-header">
-      <div class="cb-header__row">
-        <button class="cb-back" id="cbBack">←</button>
-        <h2 class="cb-title">Профиль мастера</h2>
-      </div>
-      <div class="cb-sep"></div>
+    <div class="tg-header">
+      <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
+      <div class="tg-title">Профиль мастера</div>
     </div>
+    <div class="tg-sep"></div>
 
     <div class="mp-wrap">
-      <section class="mp-card mp-head">
-        <div class="mp-ava" id="mpAva"></div>
+      <section class="mp-card mp-head" role="region" aria-labelledby="mpName">
+        <div class="mp-ava" id="mpAva" aria-hidden="true"></div>
         <div class="mp-head-info">
           <div class="mp-name" id="mpName">Мастер</div>
           <div class="mp-sub"  id="mpSub">Специалист</div>
-          <div class="mp-rating" id="mpRating">
-            <span class="stars">★★★★★</span>
+          <div class="mp-rating" id="mpRating" aria-label="Рейтинг">
+            <span class="stars" aria-hidden="true">★★★★★</span>
             <span class="mp-rating-num" id="mpRatingNum">—</span>
             <span class="mp-rev-count" id="mpRevCount"></span>
           </div>
-          <div class="mp-online" id="mpOnline"><span class="dot"></span> Онлайн</div>
+          <div class="mp-online" id="mpOnline"><span class="dot" aria-hidden="true"></span><span>Онлайн</span></div>
         </div>
       </section>
 
@@ -233,7 +231,7 @@ async function showMasterPublicProfile(id){
         <p class="mp-bio" id="mpBio"></p>
       </section>
 
-      <section class="mp-card mp-stats" id="mpStats" style="display:none">
+      <section class="mp-card mp-stats" id="mpStats" style="display:none" aria-label="Статистика">
         <div class="mp-stat"><div class="mp-stat-value" id="mpYears">—</div><div class="mp-stat-label">лет опыта</div></div>
         <div class="mp-stat"><div class="mp-stat-value" id="mpClients">—</div><div class="mp-stat-label">клиентов</div></div>
         <div class="mp-stat"><div class="mp-stat-value" id="mpSatisfy">—</div><div class="mp-stat-label">довольных</div></div>
@@ -241,8 +239,8 @@ async function showMasterPublicProfile(id){
 
       <section class="mp-card" id="mpPortfolio" style="display:none">
         <div class="mp-sec-title">📸 Портфолио работ</div>
-        <div class="mp-grid" id="mpGrid"></div>
-        <button id="mpMorePortfolio" class="mp-more-btn" style="display:none;margin-top:10px">Показать ещё</button>
+        <div class="mp-grid" id="mpGrid" role="list"></div>
+        <button id="mpMorePortfolio" class="mp-more-btn" style="display:none">Показать ещё</button>
       </section>
 
       <section class="mp-card" id="mpServices" style="display:none">
@@ -272,114 +270,47 @@ async function showMasterPublicProfile(id){
         <div class="mp-sec-title">💬 Отзывы клиентов</div>
         <div id="mpRevList" class="mp-reviews"></div>
 
-        <!-- форма нового отзыва -->
-        <div id="mpRevForm" class="mp-rev-form" style="margin-top:12px">
-          <div class="mp-rev-stars-input" id="revStars">
-            <button type="button" data-v="1">★</button>
-            <button type="button" data-v="2">★</button>
-            <button type="button" data-v="3">★</button>
-            <button type="button" data-v="4">★</button>
-            <button type="button" data-v="5">★</button>
+        <div id="mpRevForm" class="mp-rev-form">
+          <label class="sr-only" for="revText">Текст отзыва</label>
+          <div class="mp-rev-stars-input" id="revStars" aria-label="Оценка" role="radiogroup">
+            <button type="button" data-v="1" role="radio" aria-label="1 звезда">★</button>
+            <button type="button" data-v="2" role="radio" aria-label="2 звезды">★</button>
+            <button type="button" data-v="3" role="radio" aria-label="3 звезды">★</button>
+            <button type="button" data-v="4" role="radio" aria-label="4 звезды">★</button>
+            <button type="button" data-v="5" role="radio" aria-label="5 звёзд">★</button>
           </div>
           <textarea id="revText" class="mp-rev-textarea" rows="3" placeholder="Расскажите, как прошёл визит (необязательно)"></textarea>
-          <button id="revSubmit" class="mp-more-btn" style="margin-top:8px">Оставить отзыв</button>
-          <div id="revHint" class="mp-rev-hint" style="display:none;margin-top:6px;opacity:.8"></div>
+          <button id="revSubmit" class="mp-more-btn">Оставить отзыв</button>
+          <div id="revHint" class="mp-rev-hint" style="display:none"></div>
         </div>
       </section>
 
-      <div class="mp-fab">
-        <button class="mp-call" id="mpCall" title="Позвонить">📞</button>
-        <button class="mp-book" id="mpBook">Записаться</button>
+      <div class="mp-fab" role="group" aria-label="Действия">
+        <button class="mp-call" id="mpCall" title="Позвонить" aria-label="Позвонить мастеру">📞</button>
+        <button class="mp-book" id="mpBook" aria-label="Записаться">Записаться</button>
       </div>
     </div>
 
-    <!-- лайтбокс -->
-    <div id="lb" class="lb" style="display:none">
-      <div class="lb-backdrop" id="lbClose"></div>
-      <img class="lb-img" id="lbImg" alt="">
+    <div id="lb" class="lb" hidden>
+      <div class="lb-backdrop" id="lbClose" aria-label="Закрыть"></div>
+      <img class="lb-img" id="lbImg" alt="Фото из портфолио">
     </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  if (!document.getElementById('mp-css')) {
-    const css = `
-    .mp-wrap{padding:12px;display:grid;gap:10px}
-    .mp-card{background:#0f1720;border:1px solid #1e2a36;border-radius:16px;padding:14px;color:#d8e1ea}
-    .mp-head{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(180deg,#0f1720,#0b131b)}
-    .mp-ava{width:72px;height:72px;border-radius:50%;background:#2b4f88;display:flex;align-items:center;justify-content:center;
-      font-weight:800;color:#fff;background-size:cover;background-position:center}
-    .mp-name{font-size:20px;font-weight:800;color:#f2f7ff}
-    .mp-sub{opacity:.8;margin-top:2px}
-    .mp-rating{display:flex;align-items:center;gap:8px;margin-top:6px}
-    .mp-rating .stars{color:#f5c84b}
-    .mp-online{margin-top:4px;display:flex;align-items:center;gap:6px;color:#7ce38b}
-    .mp-online .dot{width:8px;height:8px;border-radius:50%;background:#2ecc71}
-    .mp-bio{line-height:1.45;color:#c8d3df}
-    .mp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
-    .mp-stat-value{font-size:22px;font-weight:800;color:#fff}
-    .mp-stat-label{font-size:12px;opacity:.8}
-    .mp-sec-title{font-weight:800;color:#eaf2ff;margin-bottom:10px}
-    .mp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-    .mp-ph{width:100%;aspect-ratio:1/1;border-radius:12px;background:#1a2531;background-size:cover;background-position:center;border:1px solid #223142;cursor:zoom-in}
-    .mp-svcs{display:grid;gap:8px}
-    .mp-svc{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:12px;border:1px solid #223142;border-radius:12px;background:#0c141d;cursor:pointer}
-    .mp-svc-name{font-weight:700;color:#f6fbff}
-    .mp-svc-desc{font-size:12px;opacity:.8;margin-top:2px;max-width:220px}
-    .mp-svc-right{text-align:right}
-    .mp-svc-price{font-weight:800}
-    .mp-svc-dur{font-size:12px;opacity:.8}
-    .mp-about .mp-subtitle{font-weight:700;margin:10px 0 6px 0;color:#f0f6ff}
-    .mp-ul{padding-left:0;list-style:none}
-    .mp-ul li{opacity:.9;margin:4px 0}
-    .mp-chips{display:flex;flex-wrap:wrap;gap:6px}
-    .chip{font-size:12px;padding:6px 10px;border-radius:999px;background:#13202c;border:1px solid #223142}
-    .mp-hours{display:grid;gap:4px}
-    .mp-hours-row{display:flex;justify-content:space-between;opacity:.9}
-    .mp-reviews{display:grid;gap:8px}
-    .mp-review{background:#0c141d;border:1px solid #223142;border-radius:12px;padding:10px}
-    .mp-rev-head{display:flex;align-items:center;gap:10px}
-    .mp-rev-ava{width:32px;height:32px;border-radius:50%;background:#2b4f88;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
-    .mp-rev-meta{flex:1}
-    .mp-rev-name{font-weight:700}
-    .mp-rev-stars{color:#f5c84b;font-size:12px}
-    .mp-rev-date{font-size:12px;opacity:.7}
-    .mp-rev-text{margin-top:6px;line-height:1.4}
-    .mp-more-btn{margin-top:10px;width:100%;border-radius:10px;padding:10px 12px;background:#13202c;border:1px solid #223142;color:#eaf2ff;font-weight:600}
-    .mp-more-btn:hover{background:#162633}
-    .mp-fab{position:sticky;bottom:12px;display:flex;justify-content:center;gap:10px}
-    .mp-call{width:44px;height:44px;border-radius:999px;background:#16a34a;color:#fff;border:0}
-    .mp-book{border-radius:999px;padding:12px 18px;background:#2563eb;border:0;color:#fff;font-weight:700}
-    @media(min-width:480px){ .mp-grid{grid-template-columns:repeat(3,1fr)} }
-
-    /* лайтбокс */
-    .lb{position:fixed;inset:0;z-index:1000}
-    .lb-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.8)}
-    .lb-img{position:absolute;max-width:92vw;max-height:92vh;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:12px}
-
-    /* форма отзыва */
-    .mp-rev-form{display:grid;gap:8px}
-    .mp-rev-stars-input{display:flex;gap:6px}
-    .mp-rev-stars-input button{font-size:20px;border:1px solid #223142;background:#13202c;color:#f5c84b;border-radius:8px;padding:6px 10px;cursor:pointer}
-    .mp-rev-stars-input button.active{background:#1b2a3a}
-    .mp-rev-textarea{width:100%;border-radius:10px;border:1px solid #223142;background:#0c141d;color:#eaf2ff;padding:8px}
-    .mp-rev-hint{font-size:12px}
-    `;
-    const style = document.createElement('style'); style.id = 'mp-css'; style.textContent = css;
-    document.head.appendChild(style);
-  }
-
   const absUrl = (u)=> !u ? "" : /^https?:\/\//i.test(u) ? u : new URL(u, location.origin).href;
 
-  // ---- загрузка данных
   let master={}, services=[], schedule=[];
   try{ master    = await api(`/api/masters/${mid}/`); }catch(_){}
   try{ services  = await api(`/api/services/?master=${mid}`) || []; }catch(_){}
   try{ schedule  = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
 
-  // header
   const $ava = document.getElementById('mpAva');
   if (master?.avatar_url){ $ava.style.backgroundImage = `url('${master.avatar_url}')`; }
-  else { $ava.textContent = (master?.name||'M').trim().slice(0,2).toUpperCase(); }
+  else {
+    const initial = (master?.name||'M').trim().split(/\s+/).map(s=>s[0]).join('').toUpperCase().slice(0,2);
+    $ava.textContent = initial || 'M';
+  }
 
   document.getElementById('mpName').textContent = master?.name || 'Мастер';
   document.getElementById('mpSub').textContent =
@@ -393,34 +324,37 @@ async function showMasterPublicProfile(id){
   const revCount = Number(master?.reviews_count || 0) || 0;
   document.getElementById('mpRatingNum').textContent = rating ? rating.toFixed(1) : '—';
   document.getElementById('mpRevCount').textContent  = `(${revCount} отзывов)`;
-  document.getElementById('mpOnline').style.display  = (master?.online===false) ? 'none' : 'flex';
+  document.getElementById('mpOnline').style.display  = (master?.online===false) ? 'none' : 'inline-flex';
 
-  if (master?.bio){ document.getElementById('mpBio').textContent = master.bio; document.getElementById('mpBioBox').style.display='block'; }
+  if (master?.bio){
+    document.getElementById('mpBio').textContent = master.bio;
+    document.getElementById('mpBioBox').style.display='block';
+  }
+
   const exp = Number(master?.experience_years||0);
   const clients = Number(master?.clients_count||0);
   if (exp || clients || rating){
     document.getElementById('mpYears').textContent   = exp ? `${exp}+` : '—';
     document.getElementById('mpClients').textContent = clients ? `${clients}` : '—';
-    document.getElementById('mpSatisfy').textContent = rating ? `${Math.round((rating/5)*100)}%` : '98%';
+    document.getElementById('mpSatisfy').textContent = rating ? `${Math.round((rating/5)*100)}%` : '—';
     document.getElementById('mpStats').style.display = 'grid';
   }
 
-  // услуги
   if (Array.isArray(services) && services.length){
     const box = document.getElementById('mpSvcList');
     services.forEach(s=>{
-      const price = (s.price ?? 0);
-      const dur   = (s.duration ?? 0);
       const el = document.createElement('div');
       el.className = 'mp-svc';
+      el.setAttribute('role','button');
+      el.setAttribute('aria-label', `${s.name||'Услуга'}`);
       el.innerHTML = `
         <div class="mp-svc-left">
           <div class="mp-svc-name">${s.name||'Услуга'}</div>
           <div class="mp-svc-desc">${s.description||''}</div>
         </div>
         <div class="mp-svc-right">
-          <div class="mp-svc-price">${price?`${price} ₽`:'— ₽'}</div>
-          <div class="mp-svc-dur">${dur?`${dur} мин`:'0 мин'}</div>
+          <div class="mp-svc-price">${(s.price ?? 0) ? `${s.price} ₽`:'— ₽'}</div>
+          <div class="mp-svc-dur">${(s.duration ?? 0) ? `${s.duration} мин`:'0 мин'}</div>
         </div>`;
       el.onclick = ()=>{ serviceId = s.id; serviceObj=s; navigate(showSlots); };
       box.appendChild(el);
@@ -428,14 +362,14 @@ async function showMasterPublicProfile(id){
     document.getElementById('mpServices').style.display='block';
   }
 
-  // о мастере (образование, спецы, часы)
   const edu = master?.education || master?.certificates || [];
   const specs = master?.specializations || [];
   if ((edu && edu.length) || (specs && specs.length) || (schedule && schedule.length)){
     if (edu && edu.length){
       const ul = document.getElementById('mpEdu');
       (Array.isArray(edu)?edu:[edu]).forEach(e=>{
-        const li=document.createElement('li'); li.textContent = `• ${typeof e==='string'?e:(e.title||e.name||e.caption||'Сертификат')}`;
+        const li=document.createElement('li');
+        li.textContent = `• ${typeof e==='string'?e:(e.title||e.name||e.caption||'Сертификат')}`;
         ul.appendChild(li);
       });
       document.getElementById('mpEduBox').style.display='block';
@@ -462,7 +396,6 @@ async function showMasterPublicProfile(id){
     document.getElementById('mpAbout').style.display='block';
   }
 
-  // -------- Портфолио с пагинацией (через твой /api/portfolio list) --------
   const $grid = document.getElementById('mpGrid');
   const $morePF = document.getElementById('mpMorePortfolio');
   let pfOffset = 0, pfLimit = 8, pfTotal = 0, pfLoading = false;
@@ -478,6 +411,8 @@ async function showMasterPublicProfile(id){
         const url = p.image_url || p.image || p.url || p.photo_url || "";
         const item = document.createElement('div');
         item.className = 'mp-ph';
+        item.setAttribute('role','img');
+        item.setAttribute('aria-label','Фото работы');
         if (url){
           const full = absUrl(url);
           item.style.backgroundImage = `url('${full}')`;
@@ -487,7 +422,6 @@ async function showMasterPublicProfile(id){
       });
       document.getElementById('mpPortfolio').style.display='block';
       pfOffset += items.length;
-      // показать кнопку, если ещё есть
       $morePF.style.display = (pfOffset < (pfTotal||0)) ? 'block' : 'none';
     }catch(_){}
     finally{ pfLoading = false; }
@@ -495,7 +429,6 @@ async function showMasterPublicProfile(id){
   $morePF.addEventListener('click', loadPortfolio);
   await loadPortfolio();
 
-  // -------- Отзывы (берём N штук) + форма добавления --------
   const $revBox  = document.getElementById('mpReviews');
   const $revList = document.getElementById('mpRevList');
 
@@ -510,7 +443,7 @@ async function showMasterPublicProfile(id){
         <div class="mp-rev-ava">${(name||'')[0]?.toUpperCase()||'К'}</div>
         <div class="mp-rev-meta">
           <div class="mp-rev-name">${name}</div>
-          <div class="mp-rev-stars">${stars}</div>
+          <div class="mp-rev-stars" aria-label="Оценка: ${starsN} из 5">${stars}</div>
         </div>
         <div class="mp-rev-date">${r.created_at? new Date(r.created_at).toLocaleDateString('ru-RU'):''}</div>
       </div>
@@ -524,12 +457,10 @@ async function showMasterPublicProfile(id){
       initial.forEach(addReviewCard);
       $revBox.style.display = 'block';
     } else {
-      // если нет отзывов — всё равно показываем форму
       $revBox.style.display = 'block';
     }
   }catch(_){}
 
-  // форма нового отзыва
   const $revStarsBox = document.getElementById('revStars');
   const $revText     = document.getElementById('revText');
   const $revSubmit   = document.getElementById('revSubmit');
@@ -540,6 +471,7 @@ async function showMasterPublicProfile(id){
     Array.from($revStarsBox.querySelectorAll('button')).forEach(btn=>{
       const v = Number(btn.dataset.v||0);
       btn.classList.toggle('active', v <= val);
+      btn.setAttribute('aria-checked', String(v === val));
     });
   }
   updateStarsUI(revRating);
@@ -570,25 +502,23 @@ async function showMasterPublicProfile(id){
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(payload)
       });
-      // prepend: новый отзыв в начало списка
       const first = document.createElement('div');
-      first.className='mp-review';
       const name = r.author_name || 'Клиент';
       const sn = Math.max(1,Math.min(5,Number(r.rating||5)));
       const st = '★★★★★'.slice(0,sn) + '☆☆☆☆☆'.slice(sn);
+      first.className='mp-review';
       first.innerHTML = `
         <div class="mp-rev-head">
           <div class="mp-rev-ava">${(name||'')[0]?.toUpperCase()||'К'}</div>
           <div class="mp-rev-meta">
             <div class="mp-rev-name">${name}</div>
-            <div class="mp-rev-stars">${st}</div>
+            <div class="mp-rev-stars" aria-label="Оценка: ${sn} из 5">${st}</div>
           </div>
           <div class="mp-rev-date">${r.created_at? new Date(r.created_at).toLocaleDateString('ru-RU'): new Date().toLocaleDateString('ru-RU')}</div>
         </div>
         <div class="mp-rev-text">${r.text||''}</div>`;
       $revList.prepend(first);
 
-      // поправим счётчик
       const numEl = document.getElementById('mpRevCount');
       if (numEl){
         const m = (numEl.textContent||'').match(/\d+/);
@@ -607,17 +537,22 @@ async function showMasterPublicProfile(id){
     }
   });
 
-  // действия
   document.getElementById('mpBook').onclick = ()=> navigate(showServices);
   document.getElementById('mpCall').onclick = ()=>{
     const tel = master?.phone || '+7 (999) 123-45-67';
     try{ window.location.href = `tel:${tel.replace(/[^\d+]/g,'')}`; }catch(_){ toast(`Телефон: ${tel}`); }
   };
 
-  // лайтбокс
-  function openLB(src){ const lb=document.getElementById('lb'); document.getElementById('lbImg').src=src; lb.style.display='block'; }
-  document.getElementById('lbClose').addEventListener('click', ()=>{ document.getElementById('lb').style.display='none'; });
-  document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') document.getElementById('lb').style.display='none'; });
+  function openLB(src){
+    const lb=document.getElementById('lb'); const img=document.getElementById('lbImg');
+    img.src=src; lb.removeAttribute('hidden');
+  }
+  document.getElementById('lbClose').addEventListener('click', ()=>{
+    document.getElementById('lb').setAttribute('hidden','');
+  });
+  document.addEventListener('keydown', (e)=>{
+    if (e.key==='Escape') document.getElementById('lb').setAttribute('hidden','');
+  });
 }
 
 async function showMasters(){
