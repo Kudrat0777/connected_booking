@@ -847,7 +847,12 @@ async function showSlots(){
     <div class="tg-wrap">
       <p class="cb-sub">Выберите удобное время для записи</p>
 
-      <!-- segment control -->
+      <div class="sl-weekbar" aria-label="Навигация по неделям">
+        <button class="wk-btn" id="wkPrev" aria-label="Предыдущая неделя">‹</button>
+        <div class="wk-label" id="wkLabel">Текущая неделя</div>
+        <button class="wk-btn" id="wkNext" aria-label="Следующая неделя">›</button>
+      </div>
+
       <div class="sl-toolbar">
         <div class="sl-seg" role="tablist" aria-label="Фильтр дат">
           <button class="seg-btn" data-mode="today"    role="tab" aria-selected="false">Сегодня</button>
@@ -878,24 +883,48 @@ async function showSlots(){
   const $loading = document.getElementById('slotLoading');
   const $list    = document.getElementById('slList');
   const $empty   = document.getElementById('slEmpty');
+  const $wkPrev  = document.getElementById('wkPrev');
+  const $wkNext  = document.getElementById('wkNext');
+  const $wkLabel = document.getElementById('wkLabel');
+  const segRoot  = document.querySelector('.sl-seg');
+  const segBtns  = Array.from(segRoot.querySelectorAll('.seg-btn'));
+
+  const monthsShort = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const dayNames = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const startOfDay = (d)=>{ const x=new Date(d); x.setHours(0,0,0,0); return x; };
+  const startOfWeekMon = (d)=>{
+    const x = startOfDay(d);
+    const day = x.getDay(); // 0..6 (вс..сб)
+    const diff = (day === 0 ? -6 : 1 - day); // сделать понедельник
+    x.setDate(x.getDate() + diff);
+    return x;
+  };
+  const addDays = (d, n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+  const labelWeek = (ws)=>{
+    const we = addDays(ws, 6);
+    const sameMonth = ws.getMonth() === we.getMonth();
+    const l = `${ws.getDate()}${sameMonth?'':' '+monthsShort[ws.getMonth()]}–${we.getDate()} ${monthsShort[we.getMonth()]}`;
+    return l;
+  };
+  const fmtKey = (ts)=>{ const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
   let slots = [];
   try { slots = await api(`/api/slots/?service=${serviceId}`, undefined, {allow404:true, fallback:[]}); }
   catch { slots = []; }
 
   const now = Date.now();
-  const mapSlot = (s) => {
-    const ts = new Date(s.time).getTime();
-    return {
-      id: s.id,
-      time: s.time,
-      ts,
-      is_booked: !!s.is_booked,
-      label: new Date(s.time).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})
-    };
-  };
-  const prepared = Array.isArray(slots)
-    ? slots.map(mapSlot).filter(s => Number.isFinite(s.ts) && s.ts >= now - 60*1000)
+  const prepared = Array.isArray(slots) ? slots
+    .map(s=>{
+      const ts = new Date(s.time).getTime();
+      return {
+        id: s.id,
+        time: s.time,
+        ts,
+        is_booked: !!s.is_booked,
+        label: new Date(s.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})
+      };
+    })
+    .filter(s => Number.isFinite(s.ts) && s.ts >= now - 60*1000)
     : [];
 
   hide($loading);
@@ -906,43 +935,36 @@ async function showSlots(){
     return;
   }
 
-  const fmtKey = (ts) => {
-    const d = new Date(ts);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  };
+  const slotById = Object.fromEntries(prepared.map(s => [s.id, s]));
   const groups = {};
   prepared.forEach(s => {
-    const k = fmtKey(s.ts);
-    (groups[k] ||= []).push(s);
+    (groups[fmtKey(s.ts)] ||= []).push(s);
   });
-
-  const dayNames   = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
-  const monthNames = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-  const todayKey   = fmtKey(Date.now());
-  const tomorrowKey= fmtKey(Date.now() + 86400000);
-
-  const slotById = Object.fromEntries(prepared.map(s => [s.id, s]));
+  const keysSorted = Object.keys(groups).sort(); // YYYY-MM-DD
 
   $list.innerHTML = '';
+  const todayKey = fmtKey(Date.now());
+  const tomorrowKey = fmtKey(Date.now() + 86400000);
 
-  Object.keys(groups).sort().forEach((key) => {
+  keysSorted.forEach((key)=>{
     const dt = new Date(key + 'T00:00:00');
-    const dd = String(dt.getDate());
-    const mm = monthNames[dt.getMonth()];
+    const dd = dt.getDate();
     const dayLabel = (key === todayKey) ? 'Сегодня' : (key === tomorrowKey ? 'Завтра' : dayNames[dt.getDay()]);
 
     const section = document.createElement('section');
     section.className = 'sl-section';
+    section.dataset.key = key;                 // дата секции
     section.dataset.day =
       key === todayKey    ? 'today'    :
       key === tomorrowKey ? 'tomorrow' : 'other';
 
     const timesHTML = groups[key]
-      .sort((a,b) => a.ts - b.ts)
-      .map(s => {
+      .sort((a,b)=> a.ts - b.ts)
+      .map(s=>{
         const disabled = s.is_booked ? 'disabled' : '';
         const cls = `sl-time${s.is_booked ? ' occupied' : ''}`;
-        return `<button type="button" class="${cls}" data-id="${s.id}" ${disabled} aria-label="Время ${s.label}${s.is_booked?' занято':''}">${s.label}</button>`;
+        return `<button type="button" class="${cls}" data-id="${s.id}" ${disabled}
+                  aria-label="Время ${s.label}${s.is_booked?' занято':''}">${s.label}</button>`;
       }).join('');
 
     section.innerHTML = `
@@ -950,7 +972,7 @@ async function showSlots(){
         <div class="sl-num">${dd}</div>
         <div class="sl-info">
           <div class="sl-day">${dayLabel}</div>
-          <div class="sl-month">${mm}</div>
+          <div class="sl-month">${monthsShort[dt.getMonth()]}</div>
         </div>
       </div>
       <div class="sl-times">${timesHTML}</div>
@@ -959,8 +981,7 @@ async function showSlots(){
     section.querySelectorAll('.sl-time').forEach(btn=>{
       if (btn.disabled) return;
       btn.addEventListener('click', ()=>{
-        btn.style.transform = 'scale(0.98)';
-        setTimeout(()=> btn.style.transform = '', 120);
+        btn.style.transform = 'scale(0.98)'; setTimeout(()=> btn.style.transform='', 120);
         slotId  = Number(btn.getAttribute('data-id'));
         slotObj = slotById[slotId];
         navigate(confirmBooking);
@@ -970,24 +991,44 @@ async function showSlots(){
     $list.appendChild(section);
   });
 
-  const segRoot = document.querySelector('.sl-seg');
-  const segBtns = Array.from(segRoot.querySelectorAll('.seg-btn'));
+  let currentWeekStart = startOfWeekMon(new Date()); // текущее значение
+  let selectedMode = 'all'; // today|tomorrow|all
 
-  function setActive(mode){
+  function setWeek(ws){
+    currentWeekStart = startOfWeekMon(ws);
+    const text = labelWeek(currentWeekStart);
+    $wkLabel.textContent = text;
+  }
+
+  function setSeg(mode){
+    selectedMode = mode;
     segBtns.forEach(b=>{
       const active = b.dataset.mode === mode;
       b.classList.toggle('is-active', active);
       b.setAttribute('aria-selected', String(active));
     });
   }
-  function applySeg(mode){
+
+  function inCurrentWeek(key){
+    const d = new Date(key + 'T00:00:00');
+    const ws = startOfWeekMon(currentWeekStart);
+    const we = addDays(ws, 6);
+    return d >= ws && d <= we;
+  }
+
+  function applyFilters(){
     let visible = 0;
-    Array.from($list.children).forEach(sec=>{
-      const day = sec.dataset.day || 'other';
-      const match = (mode === 'all') || (mode === day);
-      sec.style.display = match ? '' : 'none';
-      if (match) visible++;
+    const sections = Array.from($list.children);
+
+    sections.forEach(sec=>{
+      const key = sec.dataset.key;
+      const weekOK = inCurrentWeek(key);
+      const segOK  = (selectedMode === 'all') || (sec.dataset.day === selectedMode);
+      const showIt = weekOK && segOK;
+      sec.style.display = showIt ? '' : 'none';
+      if (showIt) visible++;
     });
+
     if (visible === 0){
       show($empty);
       if (!document.getElementById('emptyAnim')?.classList.contains('is-filled')){
@@ -995,21 +1036,36 @@ async function showSlots(){
       }
     } else {
       hide($empty);
+      const firstVis = sections.find(s => s.style.display !== 'none');
+      if (firstVis) firstVis.scrollIntoView({block:'start'});
     }
-    setActive(mode);
   }
 
+  $wkPrev.addEventListener('click', ()=>{
+    setWeek(addDays(currentWeekStart, -7));
+    applyFilters();
+    if ($empty.classList.contains('is-hidden')) return;
+    setSeg('all'); applyFilters();
+  });
+  $wkNext.addEventListener('click', ()=>{
+    setWeek(addDays(currentWeekStart, +7));
+    applyFilters();
+    if ($empty.classList.contains('is-hidden')) return;
+    setSeg('all'); applyFilters();
+  });
+
   segBtns.forEach(btn=>{
-    btn.addEventListener('click', ()=> applySeg(btn.dataset.mode));
+    btn.addEventListener('click', ()=>{
+      setSeg(btn.dataset.mode);
+      applyFilters();
+      if (!$empty.classList.contains('is-hidden')){ setSeg('all'); applyFilters(); }
+    });
   });
 
   show($list);
-
-  applySeg('all');
-  const todaySec = $list.querySelector('[data-day="today"]');
-  if (todaySec){
-    todaySec.scrollIntoView({block:'start'});
-  }
+  setWeek(new Date());
+  setSeg('all');
+  applyFilters();
 }
 
 

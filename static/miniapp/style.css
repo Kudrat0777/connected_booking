@@ -807,3 +807,24 @@ body{
   background: var(--tg-button-color);
   color: var(--tg-button-text-color);
 }
+
+/* ===== Week navigation ===== */
+.sl-weekbar{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:8px; margin:8px 0 10px;
+}
+.wk-btn{
+  height:36px; min-width:44px; padding:0 10px; border:0; cursor:pointer;
+  border-radius:12px; font-weight:800;
+  color:var(--tg-text-color);
+  background:color-mix(in srgb, var(--tg-text-color) 8%, transparent);
+  transition:transform .06s ease, background .12s ease;
+}
+.wk-btn:active{ transform:scale(.98); }
+.wk-label{
+  flex:1; text-align:center; font-weight:800;
+  color:var(--tg-text-color);
+  opacity:.9;
+}
+
+.is-hidden{ display:none !important; }
