@@ -860,3 +860,21 @@ body{
 .cnf-btn.ghost{background:transparent;color:var(--tg-text-color);
   border-color:color-mix(in srgb,var(--tg-text-color) 22%, transparent)}
 .cnf-btn:disabled{opacity:.6;pointer-events:none}
+
+/* ===== Confirm: sticker ===== */
+.cnf-sticker{
+  height: 96px;
+  margin: 8px 0 4px;
+  border-radius: 16px;
+  overflow: hidden;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--tg-text-color, #e0e9f2) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tg-text-color, #e0e9f2) 12%, transparent);
+}
+.cnf-sticker.is-filled { background: transparent; border: 0; }
+
+/* когда используем Telegram MainButton, убираем «подложку» снизу */
+.cnf-actions.is-mainbutton {
+  background: transparent;
+  padding: 0;
+}
