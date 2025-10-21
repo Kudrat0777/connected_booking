@@ -724,3 +724,62 @@ body{
 .tg-empty .tg-empty-title{ color: var(--tg-text-color); }
 .tg-empty .tg-empty-sub{ color: var(--tg-hint-color); }
 
+
+
+/* ===== Slots ===== */
+.is-hidden{ display:none !important; }
+
+.sl-list{ display:grid; gap:12px; }
+
+.sl-section{
+  background: var(--tg-secondary-bg-color);
+  border: 1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
+  border-radius: 16px;
+  padding: 14px;
+  color: var(--tg-text-color);
+}
+
+.sl-header{
+  display:flex; align-items:center; gap:12px; margin-bottom:10px;
+}
+.sl-num{
+  width:44px; height:44px; border-radius:12px; display:grid; place-items:center;
+  font-weight:900; font-size:18px;
+  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tg-text-color) 14%, transparent);
+}
+.sl-info{ line-height:1.15; }
+.sl-day{ font-weight:800; }
+.sl-month{ color: var(--tg-hint-color); font-size:13px; margin-top:2px; }
+
+.sl-times{
+  display:grid; gap:8px;
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (min-width:420px){
+  .sl-times{ grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width:520px){
+  .sl-times{ grid-template-columns: repeat(5, 1fr); }
+}
+
+.sl-time{
+  appearance:none; border:1px solid color-mix(in srgb, var(--tg-text-color) 16%, transparent);
+  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
+  color: var(--tg-text-color);
+  border-radius:12px; height:40px; padding:0 10px;
+  font-weight:800; font-size:14px;
+  display:grid; place-items:center; cursor:pointer;
+  transition: transform .06s ease, background .12s ease, border-color .12s ease;
+}
+.sl-time:active{ transform: scale(.98); }
+.sl-time:focus{ outline:2px solid color-mix(in srgb, var(--tg-link-color) 70%, transparent); outline-offset:2px; }
+
+.sl-time.occupied,
+.sl-time:disabled{
+  opacity:.45; cursor:not-allowed;
+  text-decoration: line-through;
+}
+
+.sl-empty .tg-empty-title{ color: var(--tg-text-color); }
+.sl-empty .tg-empty-sub{ color: var(--tg-hint-color); }

@@ -838,117 +838,133 @@ async function showServices(){
 
 async function showSlots(){
   $content.innerHTML = `
-    <div class="cb-header">
-      <div class="cb-header__row">
-        <button class="cb-back" id="cbBack">←</button>
-        <h2 class="cb-title">Выбор времени</h2>
-      </div>
-      <div class="cb-sep"></div>
+    <div class="tg-header">
+      <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
+      <div class="tg-title">Выбор времени</div>
     </div>
+    <div class="tg-sep"></div>
 
-    <div class="cb-wrap">
+    <div class="tg-wrap">
       <p class="cb-sub">Выберите удобное время для записи</p>
 
-      <div id="slotLoading" class="cb-loading">
-        <div class="cb-spin"></div>
+      <div id="slotLoading" class="cb-loading" role="status" aria-live="polite">
+        <div class="cb-spin" aria-hidden="true"></div>
         <div>Загружаем доступное время…</div>
       </div>
 
-      <div id="datesList" class="dates-list" style="display:none"></div>
+      <div id="slList" class="sl-list is-hidden"></div>
+
+      <div id="slEmpty" class="tg-empty sl-empty is-hidden" role="status" aria-live="polite">
+        <div id="emptyAnim" class="empty-anim" aria-hidden="true"></div>
+        <div class="tg-empty-title">Нет свободных слотов</div>
+        <div class="tg-empty-sub">Попробуйте выбрать другую услугу или день</div>
+      </div>
     </div>
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  let slots = [];
-  try { slots = await api(`/api/slots/?service=${serviceId}`); } catch(_) {}
+  const hide = el => el.classList.add('is-hidden');
+  const show = el => el.classList.remove('is-hidden');
 
-  const loading = document.getElementById('slotLoading');
-  const root    = document.getElementById('datesList');
-  loading.style.display = 'none';
-  root.style.display    = 'flex';
+  const $loading = document.getElementById('slotLoading');
+  const $list    = document.getElementById('slList');
+  const $empty   = document.getElementById('slEmpty');
+
+  let slots = [];
+  try { slots = await api(`/api/slots/?service=${serviceId}`, undefined, {allow404:true, fallback:[]}); }
+  catch { slots = []; }
 
   const now = Date.now();
-  const freeOrBusy = (s) => ({
-    id: s.id,
-    time: s.time, // ISO строка для подтверждения
-    ts: new Date(s.time).getTime(),
-    is_booked: !!s.is_booked,
-    label: new Date(s.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-  });
+  const mapSlot = (s) => {
+    const ts = new Date(s.time).getTime();
+    return {
+      id: s.id,
+      time: s.time,
+      ts,
+      is_booked: !!s.is_booked,
+      label: new Date(s.time).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})
+    };
+  };
   const prepared = Array.isArray(slots)
-    ? slots.map(freeOrBusy).filter(s => s.ts >= now - 60*1000)
+    ? slots.map(mapSlot).filter(s => Number.isFinite(s.ts) && s.ts >= now - 60*1000)
     : [];
 
+  hide($loading);
+
   if (!prepared.length){
-    root.innerHTML = `
-      <div class="date-section slide-in">
-        <div class="date-header">
-          <div class="date-info">
-            <div class="date-day">Нет свободных слотов</div>
-            <div class="date-month">Попробуйте выбрать другую услугу или день</div>
-          </div>
-        </div>
-      </div>`;
+    show($empty);
+    mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
     return;
   }
 
-  const fmtKey = (d) => {
-    const dt = new Date(d);
-    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  const fmtKey = (ts) => {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
   const groups = {};
   prepared.forEach(s => {
-    const key = fmtKey(s.ts);
-    (groups[key] ||= []).push(s);
+    const k = fmtKey(s.ts);
+    (groups[k] ||= []).push(s);
   });
 
   const dayNames   = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
   const monthNames = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-  const today      = new Date();     const todayKey    = fmtKey(today);
-  const tomorrow   = new Date(Date.now() + 86400000); const tomorrowKey = fmtKey(tomorrow);
+  const todayKey   = fmtKey(Date.now());
+  const tomorrowKey= fmtKey(Date.now() + 86400000);
 
   const slotById = Object.fromEntries(prepared.map(s => [s.id, s]));
 
+  $list.innerHTML = '';
+
   Object.keys(groups).sort().forEach((key, idx) => {
     const dt = new Date(key + 'T00:00:00');
-    const dayLabel = (key === todayKey) ? 'Сегодня' : (key === tomorrowKey ? 'Завтра' : dayNames[dt.getDay()]);
     const dd = String(dt.getDate());
     const mm = monthNames[dt.getMonth()];
+    const dayLabel = (key === todayKey) ? 'Сегодня' : (key === tomorrowKey ? 'Завтра' : dayNames[dt.getDay()]);
 
-    const section = document.createElement('div');
-    section.className = 'date-section slide-in';
-    section.style.animationDelay = `${idx*0.08}s`;
+    const section = document.createElement('section');
+    section.className = 'sl-section';
+    if (key === todayKey) section.dataset.day = 'today';
 
-    const times = groups[key]
+    const timesHTML = groups[key]
       .sort((a,b) => a.ts - b.ts)
       .map(s => {
-        const cls = `time-slot${s.is_booked ? ' occupied' : ''}`;
-        return `<div class="${cls}" data-id="${s.id}">${s.label}</div>`;
+        const disabled = s.is_booked ? 'disabled' : '';
+        const cls = `sl-time${s.is_booked ? ' occupied' : ''}`;
+        return `<button type="button" class="${cls}" data-id="${s.id}" ${disabled} aria-label="Время ${s.label}${s.is_booked?' занято':''}">${s.label}</button>`;
       }).join('');
 
     section.innerHTML = `
-      <div class="date-header">
-        <div class="date-number">${dd}</div>
-        <div class="date-info">
-          <div class="date-day">${dayLabel}</div>
-          <div class="date-month">${mm}</div>
+      <div class="sl-header">
+        <div class="sl-num">${dd}</div>
+        <div class="sl-info">
+          <div class="sl-day">${dayLabel}</div>
+          <div class="sl-month">${mm}</div>
         </div>
       </div>
-      <div class="time-slots">${times}</div>
+      <div class="sl-times">${timesHTML}</div>
     `;
-    root.appendChild(section);
+
+    section.querySelectorAll('.sl-time').forEach(btn=>{
+      if (btn.disabled) return;
+      btn.addEventListener('click', ()=>{
+        btn.style.transform = 'scale(0.98)';
+        setTimeout(()=> btn.style.transform = '', 120);
+        slotId  = Number(btn.getAttribute('data-id'));
+        slotObj = slotById[slotId];
+        navigate(confirmBooking);
+      });
+    });
+
+    $list.appendChild(section);
   });
 
-  root.querySelectorAll('.time-slot').forEach(el => {
-    if (el.classList.contains('occupied')) return;
-    el.addEventListener('click', () => {
-      el.style.transform = 'scale(0.96)';
-      setTimeout(() => { el.style.transform = ''; }, 120);
-      slotId  = Number(el.getAttribute('data-id'));
-      slotObj = slotById[slotId];        // сохраняем выбранный слот целиком
-      navigate(confirmBooking);
-    });
-  });
+  show($list);
+
+  const todaySec = $list.querySelector('[data-day="today"]');
+  if (todaySec && todaySec !== $list.firstElementChild){
+    todaySec.scrollIntoView({block:'start'});
+  }
 }
 
 
