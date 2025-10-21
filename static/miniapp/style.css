@@ -828,3 +828,35 @@ body{
 }
 
 .is-hidden{ display:none !important; }
+
+/* ===== Confirm Booking ===== */
+.cnf-wrap{padding:12px;display:grid;gap:12px}
+.cnf-card{background:var(--tg-secondary-bg-color,#0b131b);
+  border:1px solid color-mix(in srgb,var(--tg-text-color, #e0e9f2) 12%, transparent);
+  border-radius:16px;padding:14px;color:var(--tg-text-color,#e0e9f2)}
+.cnf-head{display:flex;gap:12px;align-items:center}
+.cnf-ava{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--tg-text-color) 10%, transparent);color:#fff;font-weight:800;
+  background-size:cover;background-position:center}
+.cnf-title{font-weight:800;font-size:18px;color:var(--tg-text-color)}
+.cnf-sub{font-size:13px;color:var(--tg-hint-color,rgba(224,233,242,.7))}
+.cnf-rows{margin-top:8px;border-top:1px solid color-mix(in srgb,var(--tg-text-color) 10%,transparent)}
+.cnf-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid
+  color-mix(in srgb,var(--tg-text-color) 10%,transparent)}
+.cnf-row:last-child{border-bottom:0}
+.cnf-ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:16px;
+  background:color-mix(in srgb,var(--tg-text-color) 8%,transparent)}
+.cnf-lab{font-size:12px;opacity:.8}
+.cnf-val{font-weight:800}
+.cnf-meta{margin-left:auto;text-align:right}
+.cnf-price{font-weight:800}
+.cnf-note{font-size:12px;opacity:.75}
+
+.cnf-actions{position:sticky;bottom:0;left:0;right:0;display:grid;gap:8px;
+  background:linear-gradient(to top,var(--tg-bg-color,#0e1621) 65%,transparent);
+  padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
+.cnf-btn{height:44px;border-radius:12px;font-weight:800;border:1px solid transparent;cursor:pointer}
+.cnf-btn.primary{background:var(--tg-button-color,#2ea6ff);color:var(--tg-button-text-color,#fff)}
+.cnf-btn.ghost{background:transparent;color:var(--tg-text-color);
+  border-color:color-mix(in srgb,var(--tg-text-color) 22%, transparent)}
+.cnf-btn:disabled{opacity:.6;pointer-events:none}

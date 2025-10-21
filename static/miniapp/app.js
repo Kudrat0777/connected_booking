@@ -1070,68 +1070,111 @@ async function showSlots(){
 
 
 function confirmBooking(){
-  // форматируем данные
-  const svcName   = serviceObj?.name || 'Услуга';
-  const masterName= masterObj?.name  || 'Мастер';
-  const whenStr   = slotObj?.time ? new Date(slotObj.time).toLocaleString() : `Слот #${slotId}`;
+  const svcName    = serviceObj?.name || 'Услуга';
+  const masterName = masterObj?.name  || 'Мастер';
+  const price      = (serviceObj?.price ?? null);
+  const duration   = (serviceObj?.duration ?? null);
+  const ava        = masterObj?.avatar_url || masterObj?.avatar || masterObj?.photo_url || '';
+  const initialsTxt= (masterName||'M').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
+
+  const when = slotObj?.time ? new Date(slotObj.time) : null;
+  const dateStr = when ? when.toLocaleDateString('ru-RU',{weekday:'long',day:'2-digit',month:'long'}) : `Слот #${slotId}`;
+  const timeStr = when ? when.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '—:—';
 
   $content.innerHTML = `
-    <div class="cb-header">
-      <div class="cb-header__row">
-        <button class="cb-back" id="cbBack">←</button>
-        <h2 class="cb-title">Подтверждение</h2>
-      </div>
-      <div class="cb-sep"></div>
+    <div class="tg-header">
+      <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
+      <div class="tg-title">Подтверждение</div>
     </div>
+    <div class="tg-sep"></div>
 
-    <div class="cb-wrap confirm-wrap">
-      <div class="confirmation-question fade-in">
-        <h1 class="question-title">Создать бронь?</h1>
-        <p class="question-subtitle">Проверьте детали вашей записи</p>
-      </div>
+    <div class="tg-wrap cnf-wrap">
+      <div id="cnfSticker" class="cnf-sticker" aria-hidden="true"></div>
 
-      <div class="booking-details">
-        <div class="detail-card slide-in" style="animation-delay:.1s">
-          <div class="detail-icon service-icon">✂️</div>
-          <div class="detail-info">
-            <div class="detail-label">Услуга</div>
-            <div class="detail-value" id="serviceName">${svcName}</div>
+      <section class="cnf-card" aria-labelledby="cnfTitle">
+        <div class="cnf-head">
+          <div class="cnf-ava" id="cnfAva">${ava ? '' : initialsTxt}</div>
+          <div style="min-width:0">
+            <div class="cnf-title" id="cnfTitle">${svcName}</div>
+            <div class="cnf-sub">Мастер: ${masterName}</div>
           </div>
         </div>
 
-        <div class="detail-card slide-in" style="animation-delay:.2s">
-          <div class="detail-icon time-icon">🕐</div>
-          <div class="detail-info">
-            <div class="detail-label">Время</div>
-            <div class="detail-value" id="bookingTime">${whenStr}</div>
+        <div class="cnf-rows" role="list">
+          <div class="cnf-row" role="listitem">
+            <div class="cnf-ic" aria-hidden="true">🗓️</div>
+            <div>
+              <div class="cnf-lab">Дата</div>
+              <div class="cnf-val">${dateStr}</div>
+            </div>
+            <div class="cnf-meta">
+              <div class="cnf-lab">Время</div>
+              <div class="cnf-val">${timeStr}</div>
+            </div>
+          </div>
+
+          <div class="cnf-row" role="listitem">
+            <div class="cnf-ic" aria-hidden="true">⏱️</div>
+            <div>
+              <div class="cnf-lab">Длительность</div>
+              <div class="cnf-val">${duration ? `${duration} мин` : '—'}</div>
+            </div>
+            <div class="cnf-meta">
+              <div class="cnf-lab">Стоимость</div>
+              <div class="cnf-price">${price != null ? `${price} ₽` : '—'}</div>
+            </div>
+          </div>
+
+          <div class="cnf-row" role="listitem">
+            <div class="cnf-ic" aria-hidden="true">👤</div>
+            <div>
+              <div class="cnf-lab">Мастер</div>
+              <div class="cnf-val">${masterName}</div>
+            </div>
           </div>
         </div>
 
-        <div class="detail-card slide-in" style="animation-delay:.3s">
-          <div class="detail-icon master-icon">👤</div>
-          <div class="detail-info">
-            <div class="detail-label">Мастер</div>
-            <div class="detail-value" id="masterName">${masterName}</div>
-          </div>
-        </div>
-      </div>
+        <div class="cnf-note">Нажимая «Подтвердить бронь», вы создаёте запись в выбранное время.</div>
+      </section>
 
-      <div class="actions scale-in" style="animation-delay:.4s">
-        <button id="confirmBtn" class="action-button confirm-button">✓ Подтвердить бронь</button>
-        <button id="cancelBtn"  class="action-button cancel-button">✕ Отменить</button>
+      <div class="cnf-actions" id="cnfActions">
+        <button id="confirmBtn" class="cnf-btn primary">✓ Подтвердить бронь</button>
+        <button id="cancelBtn"  class="cnf-btn ghost">✕ Отменить</button>
       </div>
     </div>
   `;
-  document.getElementById('cbBack').onclick = goBackOrHero;
 
-  document.getElementById('cancelBtn').onclick = ()=> {
-    goBackOrHero();
+  const $ava = document.getElementById('cnfAva');
+  if (ava) { $ava.style.backgroundImage = `url('${ava}')`; }
+
+  try {
+    mountTgsFromUrl('/static/miniapp/stickers/duck_ok.tgs', 'cnfSticker');
+    setTimeout(()=> {
+      const filled = document.getElementById('cnfSticker')?.classList.contains('is-filled');
+      if (!filled) mountTgsFromUrl('/static/miniapp/stickers/duck_ok.tgs', 'cnfSticker');
+    }, 300);
+  } catch(_) {}
+
+  const tg = TG?.();
+  const $confirm = document.getElementById('confirmBtn');
+  const $cancel  = document.getElementById('cancelBtn');
+  const $actions = document.getElementById('cnfActions');
+
+  const cleanupMainButton = ()=>{
+    if (!tg) return;
+    try {
+      tg.MainButton?.hide();
+      tg.offEvent?.('mainButtonClicked', onConfirm);
+    } catch(_) {}
   };
 
-  document.getElementById('confirmBtn').onclick = async (e)=>{
-    e.currentTarget.style.transform = 'scale(0.96)';
-    setTimeout(()=>{ e.currentTarget.style.transform=''; }, 120);
+  document.getElementById('cbBack').onclick = ()=>{ cleanupMainButton(); goBackOrHero(); };
+  $cancel.onclick = ()=>{ cleanupMainButton(); goBackOrHero(); };
 
+  async function onConfirm(){
+    $confirm.disabled = true; $cancel.disabled = true;
+    const prev = $confirm.textContent;
+    $confirm.textContent = '⏳ Создаём…';
     try{
       await api('/api/bookings/', {
         method:'POST',
@@ -1145,9 +1188,35 @@ function confirmBooking(){
         })
       });
       toast('Бронь создана');
+      cleanupMainButton();
       navigate(showMyBookings);
+    }catch(e){
+      const code = e?.status || 0;
+      if (code === 409) toast('Слот уже занят. Выберите другое время.');
+      else toast('Не удалось создать бронь');
+      $confirm.disabled = false; $cancel.disabled = false;
+      $confirm.textContent = prev;
+      try{ tg?.MainButton?.setParams({text:'Подтвердить бронь', is_active:true}); }catch(_){}
+    }
+  }
+
+  if (tg?.MainButton) {
+    $confirm.style.display = 'none';
+    $actions.classList.add('is-mainbutton');
+
+    try{
+      tg.MainButton.setParams({
+        text: 'Подтвердить бронь',
+        color: tg.themeParams?.button_color || '#2ea6ff',
+        text_color: tg.themeParams?.button_text_color || '#ffffff',
+        is_active: true, is_visible: true
+      });
+      tg.MainButton.show();
+      tg.onEvent('mainButtonClicked', onConfirm);
     }catch(_){}
-  };
+  } else {
+    $confirm.addEventListener('click', onConfirm);
+  }
 }
 
 async function showMyBookings(){
@@ -1196,7 +1265,6 @@ async function showMyBookings(){
   const fmtTime  = (d)=> d ? new Date(d).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
   const fmtDate  = (d)=> d ? new Date(d).toLocaleDateString('ru-RU',{day:'2-digit', month:'long'}) : '';
 
-  // нормализация статуса
   const classify = (b)=>{
     const raw = (b.status || 'pending').toLowerCase();
     const ts = b.slot?.time ? new Date(b.slot.time).getTime() : 0;
