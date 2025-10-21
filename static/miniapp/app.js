@@ -847,6 +847,15 @@ async function showSlots(){
     <div class="tg-wrap">
       <p class="cb-sub">Выберите удобное время для записи</p>
 
+      <!-- segment control -->
+      <div class="sl-toolbar">
+        <div class="sl-seg" role="tablist" aria-label="Фильтр дат">
+          <button class="seg-btn" data-mode="today"    role="tab" aria-selected="false">Сегодня</button>
+          <button class="seg-btn" data-mode="tomorrow" role="tab" aria-selected="false">Завтра</button>
+          <button class="seg-btn is-active" data-mode="all" role="tab" aria-selected="true">Все</button>
+        </div>
+      </div>
+
       <div id="slotLoading" class="cb-loading" role="status" aria-live="polite">
         <div class="cb-spin" aria-hidden="true"></div>
         <div>Загружаем доступное время…</div>
@@ -916,7 +925,7 @@ async function showSlots(){
 
   $list.innerHTML = '';
 
-  Object.keys(groups).sort().forEach((key, idx) => {
+  Object.keys(groups).sort().forEach((key) => {
     const dt = new Date(key + 'T00:00:00');
     const dd = String(dt.getDate());
     const mm = monthNames[dt.getMonth()];
@@ -924,7 +933,9 @@ async function showSlots(){
 
     const section = document.createElement('section');
     section.className = 'sl-section';
-    if (key === todayKey) section.dataset.day = 'today';
+    section.dataset.day =
+      key === todayKey    ? 'today'    :
+      key === tomorrowKey ? 'tomorrow' : 'other';
 
     const timesHTML = groups[key]
       .sort((a,b) => a.ts - b.ts)
@@ -959,10 +970,44 @@ async function showSlots(){
     $list.appendChild(section);
   });
 
+  const segRoot = document.querySelector('.sl-seg');
+  const segBtns = Array.from(segRoot.querySelectorAll('.seg-btn'));
+
+  function setActive(mode){
+    segBtns.forEach(b=>{
+      const active = b.dataset.mode === mode;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-selected', String(active));
+    });
+  }
+  function applySeg(mode){
+    let visible = 0;
+    Array.from($list.children).forEach(sec=>{
+      const day = sec.dataset.day || 'other';
+      const match = (mode === 'all') || (mode === day);
+      sec.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (visible === 0){
+      show($empty);
+      if (!document.getElementById('emptyAnim')?.classList.contains('is-filled')){
+        mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
+      }
+    } else {
+      hide($empty);
+    }
+    setActive(mode);
+  }
+
+  segBtns.forEach(btn=>{
+    btn.addEventListener('click', ()=> applySeg(btn.dataset.mode));
+  });
+
   show($list);
 
+  applySeg('all');
   const todaySec = $list.querySelector('[data-day="today"]');
-  if (todaySec && todaySec !== $list.firstElementChild){
+  if (todaySec){
     todaySec.scrollIntoView({block:'start'});
   }
 }
