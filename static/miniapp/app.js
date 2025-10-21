@@ -1175,28 +1175,40 @@ function confirmBooking(){
     $confirm.disabled = true; $cancel.disabled = true;
     const prev = $confirm.textContent;
     $confirm.textContent = '⏳ Создаём…';
-    try{
-      await api('/api/bookings/', {
+    try {
+        await api('/api/bookings/', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          slot_id: slotId,
-          name: tgUser ? `${tgUser.first_name||''} ${tgUser.last_name||''}`.trim() : 'Anonymous',
-          telegram_id: tgUser?.id ?? null,
-          username: tgUser?.username ?? null,
-          photo_url: tgUser?.photo_url ?? null
+            slot_id: slotId,
+            name: tgUser ? `${tgUser.first_name||''} ${tgUser.last_name||''}`.trim() : 'Anonymous',
+            telegram_id: tgUser?.id ?? null,
+            username: tgUser?.username ?? null,
+            photo_url: tgUser?.photo_url ?? null
         })
+    });
+    cleanupMainButton?.();
+
+      const when = slotObj?.time ? new Date(slotObj.time) : null;
+      const sub = when
+        ? `${serviceObj?.name || 'Услуга'} • ${when.toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long'})}, ${when.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`
+        : `${serviceObj?.name || 'Услуга'}`;
+
+      showSuccessModal({
+        title: 'Бронь создана',
+        sub,
+        stickerList: ['/static/miniapp/stickers/duck_classic.tgs']
       });
-      toast('Бронь создана');
-      cleanupMainButton();
-      navigate(showMyBookings);
-    }catch(e){
+
+    } catch(e) {
       const code = e?.status || 0;
-      if (code === 409) toast('Слот уже занят. Выберите другое время.');
+      if (code === 409) toast('Сlot уже занят. Выберите другое время.');
       else toast('Не удалось создать бронь');
-      $confirm.disabled = false; $cancel.disabled = false;
-      $confirm.textContent = prev;
-      try{ tg?.MainButton?.setParams({text:'Подтвердить бронь', is_active:true}); }catch(_){}
+
+      const $confirm = document.getElementById('confirmBtn');
+      const $cancel  = document.getElementById('cancelBtn');
+      if ($confirm) { $confirm.disabled = false; $confirm.textContent = '✓ Подтвердить бронь'; }
+      if ($cancel)  { $cancel.disabled = false; }
     }
   }
 
@@ -1219,6 +1231,60 @@ function confirmBooking(){
   }
 }
 
+function cleanupMainButton(){
+  try {
+    const tg = TG();
+    tg?.MainButton?.hide?.();
+    tg?.MainButton?.offClick?.();
+  } catch(_) {}
+}
+
+function showSuccessModal({ title = 'Бронь создана', sub = '', stickerList } = {}) {
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+
+  modal.innerHTML = `
+    <div class="modal__sheet" role="document">
+      <div class="modal__head">
+        <div id="modalAnim" class="modal__icon" aria-hidden="true"></div>
+        <div class="modal__title">${title}</div>
+        ${sub ? `<div class="modal__sub">${sub}</div>` : ``}
+      </div>
+      <div class="modal__actions">
+        <button id="modalGoBookings" class="modal__btn">Перейти к бронированиям</button>
+        <button id="modalClose" class="modal__btn secondary">Закрыть</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const tries = stickerList && stickerList.length
+    ? stickerList
+    : [
+        '/static/miniapp/stickers/duck_ok.tgs',
+        '/static/miniapp/stickers/duck_party.tgs',
+        '/static/miniapp/stickers/hello.tgs'
+      ];
+
+  (async () => {
+    let ok = false;
+    for (const u of tries) {
+      try { await mountTgsFromUrl(u, 'modalAnim'); ok = true; break; } catch(_) {}
+    }
+    const box = document.getElementById('modalAnim');
+    if (ok) box.classList.add('is-filled');
+    else { box.textContent = '🎉'; box.style.fontSize = '64px'; }
+  })();
+
+  const go = () => { modal.remove(); navigate(showMyBookings); };
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.getElementById('modalGoBookings').addEventListener('click', go);
+  document.getElementById('modalClose').addEventListener('click', () => modal.remove());
+
+  document.getElementById('modalGoBookings').focus();
+}
 async function showMyBookings(){
   if (!tgUser?.id){ toast('Откройте через Telegram'); returnToHero?.(); return; }
 

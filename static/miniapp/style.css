@@ -861,7 +861,6 @@ body{
   border-color:color-mix(in srgb,var(--tg-text-color) 22%, transparent)}
 .cnf-btn:disabled{opacity:.6;pointer-events:none}
 
-/* ===== Confirm: sticker ===== */
 .cnf-sticker{
   height: 96px;
   margin: 8px 0 4px;
@@ -873,8 +872,50 @@ body{
 }
 .cnf-sticker.is-filled { background: transparent; border: 0; }
 
-/* когда используем Telegram MainButton, убираем «подложку» снизу */
 .cnf-actions.is-mainbutton {
   background: transparent;
   padding: 0;
 }
+
+
+/* === Success modal (Telegram-friendly) === */
+.modal {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--tg-bg-color, #0e1621) 55%, transparent);
+  backdrop-filter: blur(2px);
+  animation: m-fade .12s ease-out;
+}
+.modal__sheet {
+  width: min(420px, 92vw);
+  background: var(--tg-secondary-bg-color, #0b131b);
+  color: var(--tg-text-color, #e0e9f2);
+  border: 1px solid color-mix(in srgb, var(--tg-text-color, #e0e9f2) 12%, transparent);
+  border-radius: 20px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  padding: 18px 16px;
+  animation: m-pop .16s ease-out;
+}
+.modal__head { display:grid; justify-items:center; gap:8px; margin-bottom:10px; }
+.modal__icon {
+  width: 120px; height: 120px; border-radius: 24px; overflow: hidden;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--tg-text-color, #e0e9f2) 6%, transparent);
+}
+.modal__icon.is-filled { background: transparent; }
+.modal__title { font-weight: 800; font-size: 18px; text-align: center; }
+.modal__sub   { opacity: .8; text-align: center; }
+.modal__actions { display:grid; gap:8px; margin-top:12px; }
+.modal__btn {
+  height: 44px; border-radius: 12px; font-weight: 700; border: 0; cursor: pointer;
+  background: var(--tg-button-color, #2ea6ff);
+  color: var(--tg-button-text-color, #fff);
+}
+.modal__btn.secondary {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--tg-text-color, #e0e9f2) 18%, transparent);
+  color: var(--tg-text-color, #e0e9f2);
+}
+
+@keyframes m-fade { from{opacity:0} to{opacity:1} }
+@keyframes m-pop  { from{transform:scale(.94)} to{transform:scale(1)} }
