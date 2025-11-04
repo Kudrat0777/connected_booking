@@ -37,7 +37,6 @@ try {
   TG()?.onEvent('themeChanged', applyThemeVars);
 } catch(_) {}
 
-// ===== Базовые DOM-элементы и хелперы =====
 const $hero   = document.getElementById('hero');
 const $app    = document.getElementById('app-shell');
 const $content= document.getElementById('content');
@@ -47,6 +46,110 @@ const $toast  = document.getElementById('toast');
 // ===== helpers =====
 function showLoading(on=true){ if($loader) $loader.style.display = on ? 'flex' : 'none'; }
 function toast(text, ms=1800){ if(!$toast) return; $toast.textContent=text; $toast.style.display='block'; setTimeout(()=>{$toast.style.display='none'}, ms); }
+
+
+const Route = {
+  key: 'cb_route',
+  save(name, params = {}) { try{ sessionStorage.setItem(this.key, JSON.stringify({name, params})); }catch{} },
+  load() { try{ return JSON.parse(sessionStorage.getItem(this.key) || 'null'); }catch{ return null; } },
+  clear(){ try{ sessionStorage.removeItem(this.key); }catch{} }
+};
+const markRoute = (name, params={}) => Route.save(name, params);
+
+function bindTgBack(){
+  const tg = TG(); if (!tg?.BackButton) return;
+  tg.BackButton.show();
+  tg.BackButton.offClick?.();
+  tg.BackButton.onClick(goBackOrHero);
+}
+function unbindTgBack(){
+  const tg = TG(); if (!tg?.BackButton) return;
+  tg.BackButton.offClick?.();
+  tg.BackButton.hide();
+}
+
+function restoreRouteAfterReload(){
+  const st = Route.load();
+  if (!st || st.name === 'home') return;
+
+  const safe = (v)=> (v===0 || !!v) ? v : null;
+
+  const map = {
+    masters(){
+      startFlow(showMasters);
+    },
+    master_profile(){
+      masterId = safe(st.params?.masterId);
+      if (!masterId) return startFlow(showMasters);
+      startFlow(() => showMasterPublicProfile(masterId));
+    },
+    services(){
+      masterId = safe(st.params?.masterId);
+      if (!masterId) return startFlow(showMasters);
+      startFlow(showServices);
+    },
+    slots(){
+      masterId  = safe(st.params?.masterId);
+      serviceId = safe(st.params?.serviceId);
+      if (!masterId || !serviceId) return startFlow(showMasters);
+      startFlow(showSlots);
+    },
+    confirm(){
+      masterId  = safe(st.params?.masterId);
+      serviceId = safe(st.params?.serviceId);
+      slotId    = safe(st.params?.slotId);
+      if (!masterId || !serviceId || !slotId) return startFlow(showMasters);
+      startFlow(confirmBooking);
+    },
+    my_bookings(){
+      startFlow(showMyBookings);
+    }
+  };
+
+  const go = map[st.name];
+  go && go();
+}
+
+function restoreFromStartParamIfClean(){
+  const st = Route.load();
+  if (st && st.name && st.name !== 'home') return;
+
+  const tg = TG();
+  const spRaw = tg?.initDataUnsafe?.start_param || new URLSearchParams(location.search).get('startapp');
+  if (!spRaw) return;
+
+  let p = {};
+  try {
+    p = spRaw.includes('=') ? Object.fromEntries(new URLSearchParams(spRaw)) : {};
+  } catch {}
+
+  const asInt = v => (v===0 || /^\d+$/.test(String(v))) ? Number(v) : null;
+
+  if (p.screen === 'masters'){
+    startFlow(showMasters);
+  } else if (p.screen === 'profile' && asInt(p.master)){
+    masterId = asInt(p.master);
+    startFlow(() => showMasterPublicProfile(masterId));
+  } else if (p.screen === 'services' && asInt(p.master)){
+    masterId = asInt(p.master);
+    startFlow(showServices);
+  } else if (p.screen === 'slots' && asInt(p.master) && asInt(p.service)){
+    masterId = asInt(p.master); serviceId = asInt(p.service);
+    startFlow(showSlots);
+  } else if (p.screen === 'confirm' && asInt(p.master) && asInt(p.service) && asInt(p.slot)){
+    masterId = asInt(p.master); serviceId = asInt(p.service); slotId = asInt(p.slot);
+    startFlow(confirmBooking);
+  } else if (p.screen === 'my'){
+    startFlow(showMyBookings);
+  }
+}
+
+// Запуск восстановления при загрузке webview
+window.addEventListener('load', () => {
+  restoreRouteAfterReload();
+  restoreFromStartParamIfClean();
+});
+
 
 // Нормализует любой «типичный» ответ API к массиву
 function toArray(payload) {
@@ -188,22 +291,37 @@ window.returnToHero = function(){
 };
 
 const ViewStack = [];
-function navigate(viewFn){ ViewStack.push(viewFn); viewFn(); }
+
+function navigate(viewFn){
+  ViewStack.push(viewFn);
+  viewFn();
+  if (ViewStack.length > 1) bindTgBack(); // системная кнопка TG «Назад»
+}
+
 function goBackOrHero(){
   if (ViewStack.length > 1){
     ViewStack.pop();
-    const top = ViewStack[ViewStack.length-1];
+    const top = ViewStack[ViewStack.length - 1];
     top && top();
+    if (ViewStack.length <= 1) unbindTgBack();
   } else {
-    window.returnToHero?.();
+    returnToHero();
   }
 }
+
+window.returnToHero = function(){
+  $app.style.display  = 'none';
+  $hero.style.display = 'flex';
+  Route.save('home');
+  unbindTgBack();
+};
 
 let masterId = null, serviceId = null, slotId = null;
 let masterObj = null, serviceObj = null, slotObj = null;
 
 async function showMasterPublicProfile(id){
   const mid = id ?? masterId;
+  markRoute('master_profile', { masterId: mid });
 
   $content.innerHTML = `
     <div class="tg-header">
@@ -556,6 +674,7 @@ async function showMasterPublicProfile(id){
 }
 
 async function showMasters(){
+  markRoute('masters');
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -730,6 +849,7 @@ async function showMasters(){
 }
 
 async function showServices(){
+  markRoute('services', { masterId });
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -837,6 +957,7 @@ async function showServices(){
 
 
 async function showSlots(){
+  markRoute('slots', { masterId, serviceId });
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -1070,6 +1191,7 @@ async function showSlots(){
 
 
 function confirmBooking(){
+  markRoute('confirm', { masterId, serviceId, slotId });
   const svcName    = serviceObj?.name || 'Услуга';
   const masterName = masterObj?.name  || 'Мастер';
   const price      = (serviceObj?.price ?? null);
@@ -1286,6 +1408,7 @@ function showSuccessModal({ title = 'Бронь создана', sub = '', stick
   document.getElementById('modalGoBookings').focus();
 }
 async function showMyBookings(){
+  markRoute('my_bookings');
   if (!tgUser?.id){ toast('Откройте через Telegram'); returnToHero?.(); return; }
 
   $content.innerHTML = `
