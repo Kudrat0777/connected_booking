@@ -193,30 +193,40 @@ function toArray(payload) {
 }
 
 
-async function api(url, init, {allow404=false, fallback=null} = {}) {
+async function api(url, init, { allow404 = false, fallback = null } = {}) {
   try {
     showLoading(true);
+
     const r = await fetch(url, init);
-    const text = await r.text(); // пробуем распарсить, даже если не ok
+    const text = await r.text();
     let data;
     try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
 
     if (!r.ok) {
-      // мягкая обработка 404, когда это не критично
-      if (allow404 && r.status === 404) {
+      const status = r.status;
+      let msg = 'Ошибка сервера';
+      if (status === 404) msg = 'Данные не найдены';
+      else if (status === 500) msg = 'Серверная ошибка. Попробуйте позже';
+      else if (status >= 400 && status < 500) msg = 'Ошибка запроса. Проверьте данные';
+
+      if (allow404 && status === 404) {
         return fallback ?? (Array.isArray(fallback) ? [] : (fallback ?? {}));
       }
-      // пробрасываем понятную ошибку
-      const err = new Error(`HTTP ${r.status} for ${url}`);
-      err.status = r.status;
+
+      toast(msg);
+
+      const err = new Error(`HTTP ${status} for ${url}`);
+      err.status = status;
       err.body = data;
       throw err;
     }
+
     return data;
   } catch (e) {
+    if (!e?.status) {
+      toast('Нет соединения с сервером');
+    }
     console.error('[API ERROR]', e);
-    const code = e?.status ? ` (${e.status})` : '';
-    toast(`Ошибка сети${code}`);
     throw e;
   } finally {
     showLoading(false);
