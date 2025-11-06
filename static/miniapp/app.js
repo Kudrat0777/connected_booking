@@ -729,12 +729,6 @@ async function showMasterPublicProfile(id){
 
 async function showMasters(){
   markRoute('masters');
-  (() => {
-  const st = Route.load();
-  const k  = routeKeyFor(st?.name, st?.params);
-  const y  = ScrollMem.load(k);
-  if (y) requestAnimationFrame(()=> { $content.scrollTop = y; });
-})();
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -748,11 +742,12 @@ async function showMasters(){
       </p>
 
       <div class="ms-search-card">
-        <div class="ms-search">
+        <div class="ms-search" id="msSearch">
           <span class="ms-i-left" aria-hidden="true">🔍</span>
           <input id="msInput" type="search" autocomplete="off"
                  placeholder="Поиск по имени, услуге или описанию…">
           <span id="msClear" class="ms-i-right" title="Очистить" style="display:none">✕</span>
+          <div id="msSpin" class="cb-spin" style="display:none"></div>
         </div>
         <div class="ms-meta"><span id="msFound">Найдено: 0</span></div>
       </div>
@@ -812,82 +807,87 @@ async function showMasters(){
   catch { raw = []; }
 
   const allMasters = toArray(raw);
-  const $load  = document.getElementById('cbLoading');
-  const $list  = document.getElementById('cbList');
-  const $empty = document.getElementById('emptyState');
-  const $found = document.getElementById('msFound');
-  const $input = document.getElementById('msInput');
-  const $clear = document.getElementById('msClear');
+  const $load   = document.getElementById('cbLoading');
+  const $list   = document.getElementById('cbList');
+  const $empty  = document.getElementById('emptyState');
+  const $found  = document.getElementById('msFound');
+  const $input  = document.getElementById('msInput');
+  const $clear  = document.getElementById('msClear');
+  const $spin   = document.getElementById('msSpin');
 
   $load.style.display = 'none';
 
   const renderList = (arr)=>{
+    const toShow = arr.length > 30 ? arr.slice(0, 30) : arr; // (1) показываем максимум 30
     $list.innerHTML = '';
     $found.textContent = `Найдено: ${arr.length}`;
-    if (!arr.length){
+    if (!toShow.length){
       $list.style.display = 'none';
       $empty.style.display = 'grid';
       mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
+      if ($spin) $spin.style.display = 'none'; // (3) убрать спиннер после рендера
       return;
     }
     $empty.style.display = 'none';
     $list.style.display = 'grid';
 
-    arr.forEach((m, i)=>{
-  const name   = m.name || 'Мастер';
-  const ava    = m.avatar_url || m.avatar || m.photo_url || '';
-  const rating = Number(m.rating ?? m.rating_value ?? 0);
-  const revs   = Number(m.reviews_count || 0);
+    toShow.forEach((m, i)=>{
+      const name   = m.name || 'Мастер';
+      const ava    = m.avatar_url || m.avatar || m.photo_url || '';
+      const rating = Number(m.rating ?? m.rating_value ?? 0);
+      const revs   = Number(m.reviews_count || 0);
 
-  const cell = document.createElement('div');
-  cell.className = 'tg-cell ms-card';
-  cell.setAttribute('tabindex', '0'); // ⟵ (1)
-  cell.setAttribute('role', 'button'); // ⟵ (2)
-  const rateTxt = Number.isFinite(rating) ? rating.toFixed(1) : '0';
-  cell.setAttribute('aria-label', `Мастер ${name}, рейтинг ${rateTxt}, ${revs} отзывов`); // ⟵ (4)
+      const cell = document.createElement('div');
+      cell.className = 'tg-cell ms-card';
+      cell.setAttribute('tabindex', '0');
+      cell.setAttribute('role', 'button');
+      const rateTxt = Number.isFinite(rating) ? rating.toFixed(1) : '0';
+      cell.setAttribute('aria-label', `Мастер ${name}, рейтинг ${rateTxt}, ${revs} отзывов`);
 
-  cell.innerHTML = `
-    <div style="display:grid;grid-template-columns:64px 1fr;gap:12px;width:100%">
-      <div class="cb-ava" style="
-        width:56px;height:56px;border-radius:14px;
-        ${ava?`background-image:url('${ava}');background-size:cover;background-position:center;`:
-          `display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;
-           background:color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent);`}
-      ">
-        ${ava?'':(initials(name)||'M')}
-      </div>
+      cell.innerHTML = `
+        <div style="display:grid;grid-template-columns:64px 1fr;gap:12px;width:100%">
+          <div class="cb-ava" style="
+            width:56px;height:56px;border-radius:14px;
+            ${ava?`background-image:url('${ava}');background-size:cover;background-position:center;`:
+              `display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;
+               background:color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent);`}
+          ">
+            ${ava?'':(initials(name)||'M')}
+          </div>
 
-      <div style="min-width:0">
-        <div class="tg-name" style="margin-right:110px">${name}</div>
-        <div class="tg-sub" style="margin-top:4px">${specText(m)}</div>
+          <div style="min-width:0">
+            <div class="tg-name" style="margin-right:110px">${name}</div>
+            <div class="tg-sub" style="margin-top:4px">${specText(m)}</div>
 
-        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-          <span>${renderStars(rating)}</span>
-          <span class="tg-sub">(${revs})</span>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+              <span>${renderStars(rating)}</span>
+              <span class="tg-sub">(${revs})</span>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <div class="ms-online">
-      <span class="tg-status active" style="padding:6px 10px">
-        <span class="dot"></span><span>Онлайн</span>
-      </span>
-    </div>
-  `;
+        <div class="ms-online">
+          <span class="tg-status active" style="padding:6px 10px">
+            <span class="dot"></span><span>Онлайн</span>
+          </span>
+        </div>
+      `;
 
-  const go = ()=>{
-    masterId  = m.id; masterObj = m;
-    navigate(()=> showMasterPublicProfile(m.id));
-  };
+      const go = ()=>{
+        masterId  = m.id; masterObj = m;
+        navigate(()=> showMasterPublicProfile(m.id));
+      };
 
-  cell.addEventListener('click', go);
-  cell.addEventListener('keydown', (e)=>{ // ⟵ (3)
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
-  });
+      cell.addEventListener('click', go);
+      cell.addEventListener('keydown', (e)=>{
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+      });
 
-  cell.style.animationDelay = `${i*0.03}s`;
-  $list.appendChild(cell);
-});
+      cell.style.animationDelay = `${i*0.03}s`;
+      $list.appendChild(cell);
+    });
+
+    if ($spin) $spin.style.display = 'none'; // (3) убрать спиннер после рендера
   };
 
   renderList(allMasters);
@@ -911,6 +911,7 @@ async function showMasters(){
 
   $input.addEventListener('input', ()=>{
     clearTimeout(timer);
+    if ($spin) $spin.style.display = 'inline-block'; // (2) показываем спиннер на время debounce
     timer = setTimeout(doFilter, 140);
   });
   $clear.addEventListener('click', ()=>{
