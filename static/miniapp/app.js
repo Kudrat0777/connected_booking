@@ -962,12 +962,6 @@ async function showMasters(){
 
 async function showServices(){
   markRoute('services', { masterId });
-  (() => {
-  const st = Route.load();
-  const k  = routeKeyFor(st?.name, st?.params);
-  const y  = ScrollMem.load(k);
-  if (y) requestAnimationFrame(()=> { $content.scrollTop = y; });
-})();
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -1003,16 +997,35 @@ async function showServices(){
 
   // грузим услуги
   let raw = [];
-  try { raw = await api(`/api/services/?master=${masterId}`, undefined, {allow404:true, fallback:[]}); }
-  catch { raw = []; }
+  try {
+    raw = await api(`/api/services/?master=${masterId}`, undefined, {allow404:true, fallback:[]});
+  } catch {
+    raw = [];
+  }
   const services = toArray(raw);
 
   hide($loading);
 
   if (!Array.isArray(services) || services.length === 0){
     show($empty);
-    // милый стикер
     mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
+
+    // Добавляем кнопку «← К мастерам», если её ещё нет
+    let backBtn = document.getElementById('backToMasters');
+    if (!backBtn){
+      backBtn = document.createElement('button');
+      backBtn.id = 'backToMasters';
+      backBtn.className = 'tg-btn';
+      backBtn.type = 'button';
+      backBtn.textContent = '← К мастерам';
+      $empty.appendChild(backBtn);
+    }
+    backBtn.addEventListener('click', () => {
+      masterId  = null;
+      masterObj = null;
+      goBackOrHero();
+    }, { once: true });
+
     return;
   }
 
@@ -1020,8 +1033,8 @@ async function showServices(){
   const fmtPrice = (v)=>{
     const n = Number(v || 0);
     if (!n) return '— ₽';
-    try{ return new Intl.NumberFormat('ru-RU').format(n) + ' ₽'; }
-    catch{ return `${n} ₽`; }
+    try { return new Intl.NumberFormat('ru-RU').format(n) + ' ₽'; }
+    catch { return `${n} ₽`; }
   };
   const fmtDur = (m)=>{
     const n = Number(m || 0);
@@ -1040,7 +1053,7 @@ async function showServices(){
     cell.className = 'tg-cell sv-card';
     cell.setAttribute('role','button');
     cell.setAttribute('tabindex','0');
-    cell.setAttribute('aria-label', `${name}, ${dur}, ${price}`);
+    cell.setAttribute('aria-label', `${name}, длительность ${dur}, стоимость ${price}`);
 
     cell.innerHTML = `
       <div class="sv-main">
