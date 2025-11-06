@@ -392,7 +392,7 @@ async function mountTgsFromUrl(url, slotId='welcomeSticker'){
   const t = document.getElementById('welcomeTitle');
   if (t) t.textContent = `Привет, ${u?.first_name || 'Гость'}!`;
 
-  mountTgsFromUrl("/static/miniapp/stickers/hello.tgs", 'welcomeSticker');
+  mountTgsFromUrl("/static/stickers/hello.tgs", 'welcomeSticker');
 
   document.getElementById('goBook')?.addEventListener('click', () => startFlow(showMasters));
   document.getElementById('goMy')  ?.addEventListener('click', () => startFlow(showMyBookings));
@@ -987,7 +987,7 @@ async function showMasters(){
   if (!toShow.length){
     $list.style.display = 'none';
     $empty.style.display = 'grid';
-    mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
+    mountTgsFromUrl("/static/stickers/duck_crying.tgs", "emptyAnim");
     if ($spin) $spin.style.display = 'none';
     return;
   }
@@ -1084,7 +1084,7 @@ async function showServices(){
 
   if (!Array.isArray(services) || services.length === 0){
     show($empty);
-    mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
+    mountTgsFromUrl("/static/stickers/duck_sad.tgs", "emptyAnim");
 
     // Добавляем кнопку «← К мастерам», если её ещё нет
     let backBtn = document.getElementById('backToMasters');
@@ -1265,7 +1265,7 @@ async function showSlots(){
 
   if (!prepared.length){
     show($empty);
-    mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
+    mountTgsFromUrl("/static/stickers/duck_sad.tgs", "emptyAnim");
     return;
   }
 
@@ -1366,7 +1366,7 @@ async function showSlots(){
     if (visible === 0){
       show($empty);
       if (!document.getElementById('emptyAnim')?.classList.contains('is-filled')){
-        mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
+        mountTgsFromUrl("/static/stickers/duck_crying.tgs", "emptyAnim");
       }
     } else {
       hide($empty);
@@ -1489,10 +1489,10 @@ function confirmBooking(){
   if (ava) { $ava.style.backgroundImage = `url('${ava}')`; }
 
   try {
-    mountTgsFromUrl('/static/miniapp/stickers/duck_ok.tgs', 'cnfSticker');
+    mountTgsFromUrl('/static/stickers/duck_ok.tgs', 'cnfSticker');
     setTimeout(()=> {
       const filled = document.getElementById('cnfSticker')?.classList.contains('is-filled');
-      if (!filled) mountTgsFromUrl('/static/miniapp/stickers/duck_ok.tgs', 'cnfSticker');
+      if (!filled) mountTgsFromUrl('/static/stickers/duck_ok.tgs', 'cnfSticker');
     }, 300);
   } catch(_) {}
 
@@ -1538,7 +1538,7 @@ function confirmBooking(){
       showSuccessModal({
         title: 'Бронь создана',
         sub,
-        stickerList: ['/static/miniapp/stickers/duck_classic.tgs']
+        stickerList: ['/static/stickers/duck_classic.tgs']
       });
 
     } catch(e) {
@@ -1604,9 +1604,9 @@ function showSuccessModal({ title = 'Бронь создана', sub = '', stick
   const tries = stickerList && stickerList.length
     ? stickerList
     : [
-        '/static/miniapp/stickers/duck_ok.tgs',
-        '/static/miniapp/stickers/duck_party.tgs',
-        '/static/miniapp/stickers/hello.tgs'
+        '/static/stickers/duck_ok.tgs',
+        '/static/stickers/duck_party.tgs',
+        '/static/stickers/hello.tgs'
       ];
 
   (async () => {
@@ -1665,7 +1665,7 @@ async function showMyBookings(){
 
   if (!Array.isArray(bookings) || bookings.length === 0){
     $empty.style.display = 'grid';
-    mountTgsFromUrl("/static/miniapp/stickers/duck_sad.tgs", "emptyAnim");
+    mountTgsFromUrl("/static/stickers/duck_sad.tgs", "emptyAnim");
     document.getElementById('emptyCta')?.addEventListener('click', () => startFlow(showMasters));
     return;
   }
