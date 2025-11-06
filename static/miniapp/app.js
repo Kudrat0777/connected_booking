@@ -50,11 +50,92 @@ function toast(text, ms=1800){ if(!$toast) return; $toast.textContent=text; $toa
 
 const Route = {
   key: 'cb_route',
-  save(name, params = {}) { try{ sessionStorage.setItem(this.key, JSON.stringify({name, params})); }catch{} },
-  load() { try{ return JSON.parse(sessionStorage.getItem(this.key) || 'null'); }catch{ return null; } },
-  clear(){ try{ sessionStorage.removeItem(this.key); }catch{} }
+  save(name, params={}){ try{ sessionStorage.setItem(this.key, JSON.stringify({name, params})) }catch{} },
+  load(){ try{ return JSON.parse(sessionStorage.getItem(this.key)||'null') }catch{ return null } },
 };
-const markRoute = (name, params={}) => Route.save(name, params);
+
+const NavStack = {
+  key: 'cb_stack',
+  read(){ try{ return JSON.parse(sessionStorage.getItem(this.key)||'[]') }catch{ return [] } },
+  write(arr){ try{ sessionStorage.setItem(this.key, JSON.stringify(arr)) }catch{} },
+  clear(){ this.write([]); Route.save('home'); },
+  push(entry){
+    const arr = this.read();
+    const last = arr[arr.length-1];
+    const same = last && last.name === entry.name &&
+                 JSON.stringify(last.params||{}) === JSON.stringify(entry.params||{});
+    if (!same) { arr.push(entry); this.write(arr); }
+    Route.save(entry.name, entry.params||{});
+  },
+  pop(){
+    const arr = this.read();
+    if (arr.length) arr.pop();
+    this.write(arr);
+    const top = arr[arr.length-1];
+    Route.save(top?.name || 'home', top?.params || {});
+    return top || null;
+  }
+};
+
+function markRoute(name, params={}){
+  if (window.__RESTORING) { Route.save(name, params); return; }
+  NavStack.push({ name, params });
+}
+
+function openByRoute(entry, first){
+  const p = entry.params || {};
+  const go = (fn) => first ? startFlow(fn) : navigate(fn);
+
+  switch (entry.name) {
+    case 'masters':
+      go(showMasters);
+      break;
+    case 'master_profile':
+      masterId = p.masterId ?? p.master ?? masterId;
+      go(() => showMasterPublicProfile(masterId));
+      break;
+    case 'services':
+      masterId = p.masterId ?? p.master ?? masterId;
+      go(showServices);
+      break;
+    case 'slots':
+      masterId  = p.masterId ?? p.master ?? masterId;
+      serviceId = p.serviceId ?? p.service ?? serviceId;
+      go(showSlots);
+      break;
+    case 'confirm':
+      masterId  = p.masterId ?? p.master ?? masterId;
+      serviceId = p.serviceId ?? p.service ?? serviceId;
+      slotId    = p.slotId    ?? p.slot    ?? slotId;
+      go(confirmBooking);
+      break;
+    case 'my_bookings':
+      go(showMyBookings);
+      break;
+    default:
+      go(showMasters);
+  }
+}
+
+function restoreFromStack(){
+  const stack = NavStack.read();
+  if (!stack.length) return false;
+  window.__RESTORING = true;
+  try{
+    openByRoute(stack[0], true);
+    for (let i=1;i<stack.length;i++) openByRoute(stack[i], false);
+  } finally {
+    window.__RESTORING = false;
+  }
+  return true;
+}
+
+window.addEventListener('load', () => {
+  if (!restoreFromStack()) {
+    const st = Route.load();
+    if (st && st.name && st.name !== 'home') openByRoute(st, true);
+  }
+});
 
 function bindTgBack(){
   const tg = TG(); if (!tg?.BackButton) return;
@@ -68,90 +149,6 @@ function unbindTgBack(){
   tg.BackButton.hide();
 }
 
-function restoreRouteAfterReload(){
-  const st = Route.load();
-  if (!st || st.name === 'home') return;
-
-  const safe = (v)=> (v===0 || !!v) ? v : null;
-
-  const map = {
-    masters(){
-      startFlow(showMasters);
-    },
-    master_profile(){
-      masterId = safe(st.params?.masterId);
-      if (!masterId) return startFlow(showMasters);
-      startFlow(() => showMasterPublicProfile(masterId));
-    },
-    services(){
-      masterId = safe(st.params?.masterId);
-      if (!masterId) return startFlow(showMasters);
-      startFlow(showServices);
-    },
-    slots(){
-      masterId  = safe(st.params?.masterId);
-      serviceId = safe(st.params?.serviceId);
-      if (!masterId || !serviceId) return startFlow(showMasters);
-      startFlow(showSlots);
-    },
-    confirm(){
-      masterId  = safe(st.params?.masterId);
-      serviceId = safe(st.params?.serviceId);
-      slotId    = safe(st.params?.slotId);
-      if (!masterId || !serviceId || !slotId) return startFlow(showMasters);
-      startFlow(confirmBooking);
-    },
-    my_bookings(){
-      startFlow(showMyBookings);
-    }
-  };
-
-  const go = map[st.name];
-  go && go();
-}
-
-function restoreFromStartParamIfClean(){
-  const st = Route.load();
-  if (st && st.name && st.name !== 'home') return;
-
-  const tg = TG();
-  const spRaw = tg?.initDataUnsafe?.start_param || new URLSearchParams(location.search).get('startapp');
-  if (!spRaw) return;
-
-  let p = {};
-  try {
-    p = spRaw.includes('=') ? Object.fromEntries(new URLSearchParams(spRaw)) : {};
-  } catch {}
-
-  const asInt = v => (v===0 || /^\d+$/.test(String(v))) ? Number(v) : null;
-
-  if (p.screen === 'masters'){
-    startFlow(showMasters);
-  } else if (p.screen === 'profile' && asInt(p.master)){
-    masterId = asInt(p.master);
-    startFlow(() => showMasterPublicProfile(masterId));
-  } else if (p.screen === 'services' && asInt(p.master)){
-    masterId = asInt(p.master);
-    startFlow(showServices);
-  } else if (p.screen === 'slots' && asInt(p.master) && asInt(p.service)){
-    masterId = asInt(p.master); serviceId = asInt(p.service);
-    startFlow(showSlots);
-  } else if (p.screen === 'confirm' && asInt(p.master) && asInt(p.service) && asInt(p.slot)){
-    masterId = asInt(p.master); serviceId = asInt(p.service); slotId = asInt(p.slot);
-    startFlow(confirmBooking);
-  } else if (p.screen === 'my'){
-    startFlow(showMyBookings);
-  }
-}
-
-// Запуск восстановления при загрузке webview
-window.addEventListener('load', () => {
-  restoreRouteAfterReload();
-  restoreFromStartParamIfClean();
-});
-
-
-// Нормализует любой «типичный» ответ API к массиву
 function toArray(payload) {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
@@ -182,7 +179,6 @@ function toArray(payload) {
 }
 
 
-// --- HTTP helper (СТАРЫЙ РАБОЧИЙ) ---
 async function api(url, init, {allow404=false, fallback=null} = {}) {
   try {
     showLoading(true);
@@ -205,7 +201,6 @@ async function api(url, init, {allow404=false, fallback=null} = {}) {
     return data;
   } catch (e) {
     console.error('[API ERROR]', e);
-    // показываем осмысленный тост (коротко), но не заспамим
     const code = e?.status ? ` (${e.status})` : '';
     toast(`Ошибка сети${code}`);
     throw e;
@@ -272,7 +267,6 @@ async function mountTgsFromUrl(url, slotId='welcomeSticker'){
   const t = document.getElementById('welcomeTitle');
   if (t) t.textContent = `Привет, ${u?.first_name || 'Гость'}!`;
 
-  // Прямо грузим локальную утку
   mountTgsFromUrl("/static/miniapp/stickers/hello.tgs", 'welcomeSticker');
 
   document.getElementById('goBook')?.addEventListener('click', () => startFlow(showMasters));
@@ -295,26 +289,18 @@ const ViewStack = [];
 function navigate(viewFn){
   ViewStack.push(viewFn);
   viewFn();
-  if (ViewStack.length > 1) bindTgBack(); // системная кнопка TG «Назад»
 }
 
 function goBackOrHero(){
   if (ViewStack.length > 1){
-    ViewStack.pop();
+    ViewStack.pop();           // снимаем верх из оперативного стека
+    NavStack.pop();            // синхронно снимаем из persist-стека
     const top = ViewStack[ViewStack.length - 1];
-    top && top();
-    if (ViewStack.length <= 1) unbindTgBack();
+    top && top();              // перерисовываем предыдущий экран
   } else {
     returnToHero();
   }
 }
-
-window.returnToHero = function(){
-  $app.style.display  = 'none';
-  $hero.style.display = 'flex';
-  Route.save('home');
-  unbindTgBack();
-};
 
 let masterId = null, serviceId = null, slotId = null;
 let masterObj = null, serviceObj = null, slotObj = null;
