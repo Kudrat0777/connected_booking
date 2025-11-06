@@ -47,7 +47,6 @@ const $toast  = document.getElementById('toast');
 function showLoading(on=true){ if($loader) $loader.style.display = on ? 'flex' : 'none'; }
 function toast(text, ms=1800){ if(!$toast) return; $toast.textContent=text; $toast.style.display='block'; setTimeout(()=>{$toast.style.display='none'}, ms); }
 
-
 const Route = {
   key: 'cb_route',
   save(name, params={}){ try{ sessionStorage.setItem(this.key, JSON.stringify({name, params})) }catch{} },
@@ -77,7 +76,6 @@ const NavStack = {
   }
 };
 
-
 const ScrollMem = {
   key: '__cb_scroll',
   read(){ try{return JSON.parse(sessionStorage.getItem(this.key)||'{}')}catch{return{};} },
@@ -85,10 +83,12 @@ const ScrollMem = {
   save(k, y){ const m=this.read(); m[k]=y; this.write(m); },
   load(k){ const m=this.read(); return m[k]||0; }
 };
+
 const routeKeyFor = (name, p={})=>{
   const {masterId='', serviceId='', slotId=''} = p||{};
   return `${name}:${masterId}:${serviceId}:${slotId}`;
 };
+
 const debounce = (fn, ms=120)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms);} };
 
 function markRoute(name, params={}){
@@ -157,6 +157,7 @@ function bindTgBack(){
   tg.BackButton.offClick?.();
   tg.BackButton.onClick(goBackOrHero);
 }
+
 function unbindTgBack(){
   const tg = TG(); if (!tg?.BackButton) return;
   tg.BackButton.offClick?.();
@@ -192,32 +193,50 @@ function toArray(payload) {
   return [];
 }
 
+let csrfToken = null;
+function setCsrfToken(token) {
+  csrfToken = token || null;
+}
 
 async function api(url, init, { allow404 = false, fallback = null } = {}) {
+  const opts = { ...(init || {}) };
+  const method = (opts.method || 'GET').toUpperCase();
+
+  const rawHeaders = opts.headers instanceof Headers
+    ? Object.fromEntries(opts.headers.entries())
+    : (opts.headers || {});
+
+  if (method === 'POST') {
+    opts.headers = {
+      ...rawHeaders,
+      'X-CSRF-Token': csrfToken || '',
+    };
+  } else {
+    opts.headers = rawHeaders;
+  }
+
   try {
     showLoading(true);
+    const res  = await fetch(url, opts);
+    const text = await res.text();
+    let data; try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
 
-    const r = await fetch(url, init);
-    const text = await r.text();
-    let data;
-    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-
-    if (!r.ok) {
-      const status = r.status;
-      let msg = 'Ошибка сервера';
-      if (status === 404) msg = 'Данные не найдены';
-      else if (status === 500) msg = 'Серверная ошибка. Попробуйте позже';
-      else if (status >= 400 && status < 500) msg = 'Ошибка запроса. Проверьте данные';
-
-      if (allow404 && status === 404) {
+    if (!res.ok) {
+      if (allow404 && res.status === 404) {
         return fallback ?? (Array.isArray(fallback) ? [] : (fallback ?? {}));
       }
 
-      toast(msg);
+      if (res.status === 404) {
+        toast('Данные не найдены');
+      } else if (res.status === 500) {
+        toast('Серверная ошибка. Попробуйте позже');
+      } else if (res.status >= 400 && res.status < 500) {
+        toast('Ошибка запроса. Проверьте данные');
+      }
 
-      const err = new Error(`HTTP ${status} for ${url}`);
-      err.status = status;
-      err.body = data;
+      const err = new Error(`HTTP ${res.status} for ${url}`);
+      err.status = res.status;
+      err.body   = data;
       throw err;
     }
 
@@ -669,6 +688,12 @@ async function showMasterPublicProfile(id){
     };
     $revSubmit.disabled = true; $revHint.style.display = 'none';
     try{
+        if (!csrfToken) {
+            try {
+                const stored = sessionStorage.getItem('csrfToken');
+                if (stored) setCsrfToken(stored);
+            } catch (_) {}
+        }
       const r = await api('/api/reviews/add/', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
