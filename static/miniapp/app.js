@@ -834,50 +834,60 @@ async function showMasters(){
     $list.style.display = 'grid';
 
     arr.forEach((m, i)=>{
-      const name   = m.name || 'Мастер';
-      const ava    = m.avatar_url || m.avatar || m.photo_url || '';
-      const rating = Number(m.rating ?? m.rating_value ?? 0);
-      const revs   = Number(m.reviews_count || 0);
+  const name   = m.name || 'Мастер';
+  const ava    = m.avatar_url || m.avatar || m.photo_url || '';
+  const rating = Number(m.rating ?? m.rating_value ?? 0);
+  const revs   = Number(m.reviews_count || 0);
 
-      const cell = document.createElement('div');
-      cell.className = 'tg-cell ms-card';
-      cell.innerHTML = `
-        <div style="display:grid;grid-template-columns:64px 1fr;gap:12px;width:100%">
-          <div class="cb-ava" style="
-            width:56px;height:56px;border-radius:14px;
-            ${ava?`background-image:url('${ava}');background-size:cover;background-position:center;`:
-              `display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;
-               background:color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent);`}
-          ">
-            ${ava?'':(initials(name)||'M')}
-          </div>
+  const cell = document.createElement('div');
+  cell.className = 'tg-cell ms-card';
+  cell.setAttribute('tabindex', '0'); // ⟵ (1)
+  cell.setAttribute('role', 'button'); // ⟵ (2)
+  const rateTxt = Number.isFinite(rating) ? rating.toFixed(1) : '0';
+  cell.setAttribute('aria-label', `Мастер ${name}, рейтинг ${rateTxt}, ${revs} отзывов`); // ⟵ (4)
 
-          <div style="min-width:0">
-            <div class="tg-name" style="margin-right:110px">${name}</div>
-            <div class="tg-sub" style="margin-top:4px">${specText(m)}</div>
+  cell.innerHTML = `
+    <div style="display:grid;grid-template-columns:64px 1fr;gap:12px;width:100%">
+      <div class="cb-ava" style="
+        width:56px;height:56px;border-radius:14px;
+        ${ava?`background-image:url('${ava}');background-size:cover;background-position:center;`:
+          `display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;
+           background:color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent);`}
+      ">
+        ${ava?'':(initials(name)||'M')}
+      </div>
 
-            <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-              <span>${renderStars(rating)}</span>
-              <span class="tg-sub">(${revs})</span>
-            </div>
-          </div>
+      <div style="min-width:0">
+        <div class="tg-name" style="margin-right:110px">${name}</div>
+        <div class="tg-sub" style="margin-top:4px">${specText(m)}</div>
+
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+          <span>${renderStars(rating)}</span>
+          <span class="tg-sub">(${revs})</span>
         </div>
+      </div>
+    </div>
 
-        <div class="ms-online">
-          <span class="tg-status active" style="padding:6px 10px">
-            <span class="dot"></span><span>Онлайн</span>
-          </span>
-        </div>
-      `;
+    <div class="ms-online">
+      <span class="tg-status active" style="padding:6px 10px">
+        <span class="dot"></span><span>Онлайн</span>
+      </span>
+    </div>
+  `;
 
-      cell.addEventListener('click', ()=>{
-        masterId  = m.id; masterObj = m;
-        navigate(()=> showMasterPublicProfile(m.id));
-      });
+  const go = ()=>{
+    masterId  = m.id; masterObj = m;
+    navigate(()=> showMasterPublicProfile(m.id));
+  };
 
-      cell.style.animationDelay = `${i*0.03}s`;
-      $list.appendChild(cell);
-    });
+  cell.addEventListener('click', go);
+  cell.addEventListener('keydown', (e)=>{ // ⟵ (3)
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+  });
+
+  cell.style.animationDelay = `${i*0.03}s`;
+  $list.appendChild(cell);
+});
   };
 
   renderList(allMasters);
