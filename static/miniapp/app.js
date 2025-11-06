@@ -77,6 +77,20 @@ const NavStack = {
   }
 };
 
+
+const ScrollMem = {
+  key: '__cb_scroll',
+  read(){ try{return JSON.parse(sessionStorage.getItem(this.key)||'{}')}catch{return{};} },
+  write(map){ try{sessionStorage.setItem(this.key, JSON.stringify(map))}catch{} },
+  save(k, y){ const m=this.read(); m[k]=y; this.write(m); },
+  load(k){ const m=this.read(); return m[k]||0; }
+};
+const routeKeyFor = (name, p={})=>{
+  const {masterId='', serviceId='', slotId=''} = p||{};
+  return `${name}:${masterId}:${serviceId}:${slotId}`;
+};
+const debounce = (fn, ms=120)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms);} };
+
 function markRoute(name, params={}){
   if (window.__RESTORING) { Route.save(name, params); return; }
   NavStack.push({ name, params });
@@ -214,6 +228,37 @@ async function safeGet(url, fallback) {
   catch { return fallback; }
 }
 
+// === Уменьшаем дубли и ускоряем ===
+const ApiCache = {
+  key: '__cb_api_cache',
+  ttl: 15000,
+  _read(){ try{return JSON.parse(sessionStorage.getItem(this.key)||'{}')}catch{return{};} },
+  _write(map){ try{ sessionStorage.setItem(this.key, JSON.stringify(map)); }catch{} },
+  get(url){
+    const map = this._read();
+    const hit = map[url];
+    if (!hit) return null;
+    if (Date.now() - hit.t > this.ttl) { delete map[url]; this._write(map); return null; }
+    return hit.data;
+  },
+  set(url, data){
+    const map = this._read();
+    map[url] = { t: Date.now(), data };
+    this._write(map);
+  }
+};
+
+async function apiCached(url, init, opts){
+  const method = (init?.method || 'GET').toUpperCase();
+  const cacheable = method === 'GET';
+  if (cacheable){
+    const hit = ApiCache.get(url);
+    if (hit) return hit;
+  }
+  const data = await api(url, init, opts);
+  if (cacheable) ApiCache.set(url, data);
+  return data;
+}
 
 const initials = (name='') => name.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
 
@@ -287,12 +332,19 @@ window.returnToHero = function(){
 const ViewStack = [];
 
 function navigate(viewFn){
+  const cur = NavStack.read().slice(-1)[0];
+  if (cur) ScrollMem.save(routeKeyFor(cur.name, cur.params), $content.scrollTop || 0);
+
   ViewStack.push(viewFn);
   viewFn();
+
+  if (ViewStack.length > 1) bindTgBack(); else unbindTgBack();
 }
 
 function goBackOrHero(){
-  if (ViewStack.length > 1){
+    if (ViewStack.length > 1){
+    const cur = NavStack.read().slice(-1)[0];
+    if (cur) ScrollMem.save(routeKeyFor(cur.name, cur.params), $content.scrollTop || 0);
     ViewStack.pop();           // снимаем верх из оперативного стека
     NavStack.pop();            // синхронно снимаем из persist-стека
     const top = ViewStack[ViewStack.length - 1];
@@ -308,6 +360,12 @@ let masterObj = null, serviceObj = null, slotObj = null;
 async function showMasterPublicProfile(id){
   const mid = id ?? masterId;
   markRoute('master_profile', { masterId: mid });
+  (() => {
+  const st = Route.load();
+  const k  = routeKeyFor(st?.name, st?.params);
+  const y  = ScrollMem.load(k);
+  if (y) requestAnimationFrame(()=> { $content.scrollTop = y; });
+})();
 
   $content.innerHTML = `
     <div class="tg-header">
@@ -661,6 +719,12 @@ async function showMasterPublicProfile(id){
 
 async function showMasters(){
   markRoute('masters');
+  (() => {
+  const st = Route.load();
+  const k  = routeKeyFor(st?.name, st?.params);
+  const y  = ScrollMem.load(k);
+  if (y) requestAnimationFrame(()=> { $content.scrollTop = y; });
+})();
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -836,6 +900,12 @@ async function showMasters(){
 
 async function showServices(){
   markRoute('services', { masterId });
+  (() => {
+  const st = Route.load();
+  const k  = routeKeyFor(st?.name, st?.params);
+  const y  = ScrollMem.load(k);
+  if (y) requestAnimationFrame(()=> { $content.scrollTop = y; });
+})();
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -944,6 +1014,12 @@ async function showServices(){
 
 async function showSlots(){
   markRoute('slots', { masterId, serviceId });
+  (() => {
+  const st = Route.load();
+  const k  = routeKeyFor(st?.name, st?.params);
+  const y  = ScrollMem.load(k);
+  if (y) requestAnimationFrame(()=> { $content.scrollTop = y; });
+})();
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -1178,6 +1254,12 @@ async function showSlots(){
 
 function confirmBooking(){
   markRoute('confirm', { masterId, serviceId, slotId });
+  (() => {
+  const st = Route.load();
+  const k  = routeKeyFor(st?.name, st?.params);
+  const y  = ScrollMem.load(k);
+  if (y) requestAnimationFrame(()=> { $content.scrollTop = y; });
+})();
   const svcName    = serviceObj?.name || 'Услуга';
   const masterName = masterObj?.name  || 'Мастер';
   const price      = (serviceObj?.price ?? null);
