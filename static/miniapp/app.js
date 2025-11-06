@@ -727,6 +727,93 @@ async function showMasterPublicProfile(id){
   });
 }
 
+function renderMasterCard(master, onClick){
+  const name   = master?.name || 'Мастер';
+  const ava    = master?.avatar_url || master?.avatar || master?.photo_url || '';
+  const rating = Number(master?.rating ?? master?.rating_value ?? 0);
+  const revs   = Number(master?.reviews_count || 0);
+  const rateTxt= Number.isFinite(rating) ? rating.toFixed(1) : '0';
+
+  const specText = (m)=>{
+    const arr = Array.isArray(m?.specializations)
+      ? m.specializations.map(s => typeof s === 'string' ? s : (s?.name || '')).filter(Boolean)
+      : [];
+    const base = arr.length ? arr.join(' • ') : (m?.title || m?.profession || 'Специалист');
+    const exp  = Number(m?.experience_years || 0);
+    return `${base}${exp ? ` • ${exp}+ лет` : ''}`;
+  };
+
+  const starSVG = (type, gid)=>{
+    const fill = (type==='full') ? '#f6c453' : (type==='half' ? `url(#${gid})` : 'none');
+    const stroke = '#e2b13a';
+    return `
+      <svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:-3px">
+        ${type==='half' ? `
+          <defs>
+            <linearGradient id="${gid}" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="50%" stop-color="#f6c453"/><stop offset="50%" stop-color="transparent"/>
+            </linearGradient>
+          </defs>` : ``}
+        <path d="M12 2.5l2.9 6 6.6.6-5 4.3 1.5 6.4L12 16.9 5.9 19.8 7.4 13.4 2.4 9.1l6.7-.6L12 2.5z"
+              fill="${fill}" stroke="${stroke}" stroke-width="1"/>
+      </svg>`;
+  };
+
+  const renderStars = (val=0)=>{
+    const gid = `g-${Math.random().toString(36).slice(2)}`; // уникальный id для half-fill
+    const r = Math.max(0, Math.min(5, Number(val)||0));
+    const full = Math.floor(r);
+    const half = r - full >= 0.5 ? 1 : 0;
+    const empty = 5 - full - half;
+    return `${'x'.repeat(full).split('').map(()=>starSVG('full', gid)).join('')}${
+            half?starSVG('half', gid):''}${
+            'x'.repeat(empty).split('').map(()=>starSVG('empty', gid)).join('')}`;
+  };
+
+  const cell = document.createElement('div');
+  cell.className = 'tg-cell ms-card';
+  cell.setAttribute('tabindex', '0');
+  cell.setAttribute('role', 'button');
+  cell.setAttribute('aria-label', `Мастер ${name}, рейтинг ${rateTxt}, ${revs} отзывов`);
+
+  cell.innerHTML = `
+    <div style="display:grid;grid-template-columns:64px 1fr;gap:12px;width:100%">
+      <div class="cb-ava" style="
+        width:56px;height:56px;border-radius:14px;
+        ${ava?`background-image:url('${ava}');background-size:cover;background-position:center;`:
+          `display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;
+           background:color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent);`}
+      ">
+        ${ava ? '' : (initials(name)||'M')}
+      </div>
+
+      <div style="min-width:0">
+        <div class="tg-name" style="margin-right:110px">${name}</div>
+        <div class="tg-sub" style="margin-top:4px">${specText(master)}</div>
+
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+          <span>${renderStars(rating)}</span>
+          <span class="tg-sub">(${revs})</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ms-online">
+      <span class="tg-status active" style="padding:6px 10px">
+        <span class="dot"></span><span>Онлайн</span>
+      </span>
+    </div>
+  `;
+
+  const go = ()=> { if (typeof onClick === 'function') onClick(); };
+  cell.addEventListener('click', go);
+  cell.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+  });
+
+  return cell;
+}
+
 async function showMasters(){
   markRoute('masters');
   $content.innerHTML = `
@@ -818,77 +905,31 @@ async function showMasters(){
   $load.style.display = 'none';
 
   const renderList = (arr)=>{
-    const toShow = arr.length > 30 ? arr.slice(0, 30) : arr; // (1) показываем максимум 30
-    $list.innerHTML = '';
-    $found.textContent = `Найдено: ${arr.length}`;
-    if (!toShow.length){
-      $list.style.display = 'none';
-      $empty.style.display = 'grid';
-      mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
-      if ($spin) $spin.style.display = 'none'; // (3) убрать спиннер после рендера
-      return;
-    }
-    $empty.style.display = 'none';
-    $list.style.display = 'grid';
+  const toShow = arr.length > 30 ? arr.slice(0, 30) : arr;
+  $list.innerHTML = '';
+  $found.textContent = `Найдено: ${arr.length}`;
+  if (!toShow.length){
+    $list.style.display = 'none';
+    $empty.style.display = 'grid';
+    mountTgsFromUrl("/static/miniapp/stickers/duck_crying.tgs", "emptyAnim");
+    if ($spin) $spin.style.display = 'none';
+    return;
+  }
+  $empty.style.display = 'none';
+  $list.style.display = 'grid';
 
-    toShow.forEach((m, i)=>{
-      const name   = m.name || 'Мастер';
-      const ava    = m.avatar_url || m.avatar || m.photo_url || '';
-      const rating = Number(m.rating ?? m.rating_value ?? 0);
-      const revs   = Number(m.reviews_count || 0);
+  toShow.forEach((m, i)=>{
+    const onClick = ()=>{
+      masterId  = m.id; masterObj = m;
+      navigate(()=> showMasterPublicProfile(m.id));
+    };
+    const card = renderMasterCard(m, onClick);
+    card.style.animationDelay = `${i * 0.03}s`;
+    $list.appendChild(card);
+  });
 
-      const cell = document.createElement('div');
-      cell.className = 'tg-cell ms-card';
-      cell.setAttribute('tabindex', '0');
-      cell.setAttribute('role', 'button');
-      const rateTxt = Number.isFinite(rating) ? rating.toFixed(1) : '0';
-      cell.setAttribute('aria-label', `Мастер ${name}, рейтинг ${rateTxt}, ${revs} отзывов`);
-
-      cell.innerHTML = `
-        <div style="display:grid;grid-template-columns:64px 1fr;gap:12px;width:100%">
-          <div class="cb-ava" style="
-            width:56px;height:56px;border-radius:14px;
-            ${ava?`background-image:url('${ava}');background-size:cover;background-position:center;`:
-              `display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;
-               background:color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent);`}
-          ">
-            ${ava?'':(initials(name)||'M')}
-          </div>
-
-          <div style="min-width:0">
-            <div class="tg-name" style="margin-right:110px">${name}</div>
-            <div class="tg-sub" style="margin-top:4px">${specText(m)}</div>
-
-            <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-              <span>${renderStars(rating)}</span>
-              <span class="tg-sub">(${revs})</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="ms-online">
-          <span class="tg-status active" style="padding:6px 10px">
-            <span class="dot"></span><span>Онлайн</span>
-          </span>
-        </div>
-      `;
-
-      const go = ()=>{
-        masterId  = m.id; masterObj = m;
-        navigate(()=> showMasterPublicProfile(m.id));
-      };
-
-      cell.addEventListener('click', go);
-      cell.addEventListener('keydown', (e)=>{
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
-      });
-
-      cell.style.animationDelay = `${i*0.03}s`;
-      $list.appendChild(cell);
-    });
-
-    if ($spin) $spin.style.display = 'none'; // (3) убрать спиннер после рендера
-  };
+  if ($spin) $spin.style.display = 'none';
+};
 
   renderList(allMasters);
 
