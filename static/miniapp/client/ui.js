@@ -90,10 +90,16 @@ export function mountWebmToSlot(url, slotId = 'welcomeSticker') {
 
 export async function mountTgsFromUrl(url, slotId = 'welcomeSticker') {
   try{
+    if (typeof pako === 'undefined') throw new Error('pako not available');
+    if (typeof lottie === 'undefined') throw new Error('lottie not available');
+
     const res = await fetch(url, {cache:'no-store'});
     const buf = await res.arrayBuffer();
     const jsonStr = pako.ungzip(new Uint8Array(buf), {to:'string'});
     const data = JSON.parse(jsonStr);
     mountLottieFromData(data, slotId);
-  }catch(e){ console.warn('local .tgs failed', e); }
+  }catch(e){
+    console.warn('local .tgs failed', e);
+    // optional fallback: try to load url.replace('.tgs', '.webm') if exists
+  }
 }

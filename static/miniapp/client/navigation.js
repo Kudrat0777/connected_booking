@@ -51,15 +51,27 @@ export function markRoute(name, params={}){
 }
 
 export function bindTgBack(){
-  const tg = TG(); if (!tg?.BackButton) return;
-  tg.BackButton.show();
-  tg.BackButton.offClick?.();
-  tg.BackButton.onClick(goBackOrHero);
+  const tg = TG(); if (!tg || !tg.BackButton) return;
+  try {
+    if (typeof tg.BackButton.show === 'function') tg.BackButton.show();
+    if (typeof tg.BackButton.offClick === 'function') {
+      try { tg.BackButton.offClick(); } catch(e) {}
+    }
+    if (typeof tg.BackButton.onClick === 'function') tg.BackButton.onClick(goBackOrHero);
+  } catch (e) {
+    console.warn('bindTgBack failed', e);
+  }
 }
 export function unbindTgBack(){
-  const tg = TG(); if (!tg?.BackButton) return;
-  tg.BackButton.offClick?.();
-  tg.BackButton.hide();
+  const tg = TG(); if (!tg || !tg.BackButton) return;
+  try {
+    if (typeof tg.BackButton.offClick === 'function') {
+      try { tg.BackButton.offClick(); } catch(e) {}
+    }
+    if (typeof tg.BackButton.hide === 'function') tg.BackButton.hide();
+  } catch (e) {
+    console.warn('unbindTgBack failed', e);
+  }
 }
 
 const ViewStack = [];
