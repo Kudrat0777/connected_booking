@@ -1,0 +1,72 @@
+/* СТРАНИЦА: Masters
+   Отдельный CSS для страницы списка мастеров.
+   Файл предназначен для импорта в корневой style.css (style.css остаётся родительским).
+   Стили используют TMA CSS-переменные (--tg-theme-*) и безопасные зоны.
+*/
+
+/* Базовые отступы контейнера поиска */
+.ms-search-card{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  margin:8px 0 12px;
+  width:100%;
+}
+
+/* Поисковая строка */
+.ms-search{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:1;
+  border:1px solid color-mix(in srgb,var(--tg-theme-text-color, #e0e9f2) 12%, transparent);
+  background: var(--tg-theme-secondary-bg-color, rgba(0,0,0,.04));
+  border-radius:12px;
+  padding:10px 12px;
+}
+.ms-search input{
+  all:unset;
+  flex:1;
+  color:var(--tg-theme-text-color);
+  font-size:14px;
+  min-height:44px; /* TMA touch target */
+}
+.ms-i-left{ opacity:.8; }
+.ms-i-right{
+  background:transparent;
+  border:0;
+  padding:6px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+/* Search meta */
+.ms-meta{ display:flex; align-items:center; gap:8px; }
+
+/* List */
+.tg-list.no-frame{
+  display:grid;
+  gap:12px;
+  padding-top:8px;
+}
+
+/* Card tweaks for masters page */
+.ms-card{ padding:14px; align-items:start; }
+.cb-ava{ flex:0 0 auto; }
+
+/* Ensure reachable focus outline (accessibility) */
+.tg-cell:focus{
+  outline: 3px solid color-mix(in srgb, var(--tg-theme-link-color, #6ab3f3) 30%, transparent);
+  outline-offset: 2px;
+}
+
+/* Empty state animation slot */
+.empty-anim{ width:112px; height:112px; border-radius:12px; }
+
+/* Loading placeholder */
+.cb-loading{ display:flex; gap:10px; align-items:center; justify-content:center; padding:18px; color:var(--tg-theme-hint-color); }
+
+/* Small responsive tweaks */
+@media (min-width:480px){
+  .ms-search-card{ gap:16px; }
+}

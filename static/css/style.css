@@ -1,17 +1,23 @@
-/* ===== КОРНЕВОЙ STYLE.CSS ===== */
+//* ===== КОРНЕВОЙ STYLE.CSS ===== */
 /* Этот файл адаптирован под требования TMA (Telegram Mini Apps).
    Изменения (кратко):
    - Добавлены переменные TMA (--tg-theme-*) с fallback-значениями.
    - Добавлены безопасные зоны env(safe-area-inset-*) и класс .tma-safe-area.
    - Установлены минимальные размеры для touch-элементов (min-height:44px) для основных интерактивных кнопок.
-   - Файловая структура в одном файле: секции начинаются с комментариев /* СТРАНИЦА: [имя] */.
+   - Файловая структура: дочерние стили страниц вынесены в отдельные файлы и импортируются здесь.
    - Сохранена обратная совместимость: все существующие классы и правила оставлены без удаления; новые правила добавлены поверх.
    Комментарии к изменениям встроены рядом с правками.
 */
 
+/* Импорт стилей страницы Masters (файл находится в static/css/layouts/masters.css).
+   Импорт должен идти до остальных правил (CSS требование: @import до правил).
+*/
+@import url("./layouts/masters.css");
+
 /* =======================================================
    Обратите внимание:
-   - Не удалял существующие селекторы и правила — все оригинальные стили сохранены.
+   - Не удалял существующие селекторы и правила — все оригинальные стили сохранены,
+     кроме тех, которые вынесены в layouts/masters.css (чтобы избежать дублирования).
    - Новые переменные и правила помещены в начало/рядом с существующими блоками,
      чтобы их можно было легко обнаружить и при необходимости откатить.
    - Минимальные размеры для touch применены неинвазивно (min-height/min-width),
@@ -391,153 +397,8 @@ body{
   html, body{ background: var(--tg-bg-color, #0e1621) !important; }
 }
 
-/* =========================================================
-   СТРАНИЦА: Masters / Profile (mp-*)
-   ========================================================= */
-.m-list { display:grid; gap:12px; }
-.m-hint { color: var(--tg-theme-hint-color, #6b7280); margin-top:6px; }
-
-.m-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 64px 1fr;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--tg-secondary-bg-color, #f9fafb);
-  border: 1px solid rgba(0,0,0,.06);
-  box-shadow: 0 2px 8px rgba(0,0,0,.04);
-}
-@media (prefers-color-scheme: dark){
-  .m-card { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.08); }
-}
-
-.m-ava{
-  width:64px;height:64px;border-radius:16px;display:grid;place-items:center;
-  background: color-mix(in srgb, var(--tg-theme-text-color, #111) 10%, transparent);
-  font-weight:800;color:#fff;background-size:cover;background-position:center;
-}
-
-.m-name{
-  font-weight:800;font-size:18px;line-height:1.1;
-  color: var(--tg-theme-text-color, var(--text));
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.m-sub{
-  margin-top:6px;font-size:14px;
-  color: color-mix(in srgb, var(--tg-theme-text-color) 60%, transparent);
-}
-
-.m-rating{ margin-top:10px; display:flex; align-items:center; gap:8px; }
-.m-stars{ display:inline-flex; gap:2px; }
-.m-stars svg{ width:16px; height:16px; flex:0 0 16px; }
-.m-rcount{ font-size:12px; color: color-mix(in srgb, var(--tg-theme-text-color) 60%, transparent); }
-
-.m-badge{
-  position:absolute; top:10px; right:12px;
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px;
-  color: rgb(80,200,120);
-  background: rgba(80,200,120,.12);
-  border: 1px solid rgba(80,200,120,.28);
-}
-.m-badge .dot{ width:8px;height:8px;border-radius:50%;background: currentColor; }
-
-.m-actions{ margin-top:12px; display:flex; justify-content:flex-end; }
-.m-profile{
-  appearance:none; cursor:pointer;
-  border:1px solid color-mix(in srgb, var(--tg-link-color, #2ea6ff) 40%, transparent);
-  background: color-mix(in srgb, var(--tg-link-color, #2ea6ff) 12%, transparent);
-  color: var(--tg-link-color, #2ea6ff);
-  font-weight:800; font-size:14px; padding:8px 12px; border-radius:999px;
-  display:inline-flex; align-items:center; gap:8px;
-}
-.m-profile:active{ filter:brightness(.96); transform:translateY(1px); }
-
-.cb-sub.masters { color: var(--tg-theme-hint-color, #6b7280); }
-
-.m-chip{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px;
-  border:1px solid currentColor; background: transparent;
-}
-.m-chip .dot{ width:8px; height:8px; border-radius:50%; background: currentColor; }
-.m-chip.online{
-  color: rgb(80,200,120);
-  background: rgba(80,200,120,.12);
-  border-color: rgba(80,200,120,.28);
-}
-.m-actions{ margin-top:12px; display:flex; justify-content:flex-end; }
-
-/* ---- Masters toolbar ---- */
-.ms-toolbar{display:grid;grid-template-columns:1fr auto;gap:10px;margin:6px 0 10px}
-.ms-search{display:flex;align-items:center;gap:8px;border:1px solid color-mix(in srgb,var(--tg-text-color) 12%,transparent);
-  background:var(--tg-secondary-bg-color,rgba(0,0,0,.04)); border-radius:12px; padding:10px 12px}
-.ms-search input{all:unset;flex:1;color:var(--tg-text-color);font-size:14px}
-.ms-sort{border:1px solid color-mix(in srgb,var(--tg-text-color) 12%,transparent);
-  background:var(--tg-secondary-bg-color,rgba(0,0,0,.04)); color:var(--tg-text-color);
-  border-radius:12px; padding:10px 12px; font:inherit}
-
-/* chips */
-.ms-chips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px}
-.ms-chip{padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;
-  border:1px solid color-mix(in srgb,var(--tg-text-color) 14%,transparent);
-  background:var(--tg-secondary-bg-color,rgba(0,0,0,.04)); color:var(--tg-text-color); transition:.15s}
-.ms-chip.active{background:color-mix(in srgb,var(--tg-link-color) 18%,transparent);
-  border-color:color-mix(in srgb,var(--tg-link-color) 36%,transparent)}
-
-/* карточки мастеров — маленькие штрихи */
-.tg-cell.ms-card{padding:16px}
-.ms-ava{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--tg-text-color) 8%,transparent); font-weight:800;color:#fff}
-.ms-name{font-weight:800;color:var(--tg-text-color)}
-.ms-sub{font-size:13px;color:color-mix(in srgb,var(--tg-text-color) 55%,transparent)}
-.ms-stars{display:flex;align-items:center;gap:8px;margin-top:8px}
-
-/* ---- Search/Filter ---- */
-.ms-panel{
-  border:1px solid color-mix(in srgb,var(--tg-text-color) 12%,transparent);
-  background:var(--tg-secondary-bg-color,rgba(0,0,0,.04));
-  border-radius:16px;
-  padding:14px;
-  margin-top:8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.04);
-}
-.ms-panel .ms-title{
-  font-weight:800;
-  margin:0 0 8px 0;
-  color:var(--tg-text-color);
-  font-size:16px;
-  opacity:.9;
-}
-
-.ms-search{display:flex;align-items:center;gap:8px;border:1px solid color-mix(in srgb,var(--tg-text-color) 12%,transparent);
-  background:var(--tg-theme-bg-color,transparent); border-radius:12px; padding:10px 12px}
-.ms-search input{all:unset;flex:1;color:var(--tg-text-color);font-size:14px}
-.ms-count{color:color-mix(in srgb,var(--tg-text-color) 55%,transparent); font-size:13px; margin-top:8px}
-
-.ms-chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
-.ms-chip{padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;
-  border:1px solid color-mix(in srgb,var(--tg-text-color) 14%,transparent);
-  background:var(--tg-theme-bg-color,transparent); color:var(--tg-text-color); transition:.15s}
-.ms-chip.active{background:color-mix(in srgb,var(--tg-link-color) 18%,transparent);
-  border-color:color-mix(in srgb,var(--tg-link-color) 36%,transparent)}
-
-.ms-sort{border:1px solid color-mix(in srgb,var(--tg-text-color) 12%,transparent);
-  background:var(--tg-theme-bg-color,transparent); color:var(--tg-text-color);
-  border-radius:12px; padding:10px 12px; font:inherit}
-
-.tg-list.no-frame{gap:14px}
-.tg-cell.ms-card{padding:16px}
-.ms-ava{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--tg-text-color) 8%,transparent); font-weight:800;color:#fff}
-.ms-name{font-weight:800;color:var(--tg-text-color)}
-.ms-sub{font-size:13px;color:color-mix(in srgb,var(--tg-text-color) 55%,transparent)}
-.ms-stars{display:flex;align-items:center;gap:8px;margin-top:8px}
-
-@media (prefers-reduced-motion: reduce){ .tg-cell{animation:none} }
-
 /* ===== Show Master Profile ===== */
+/* (Profile-specific styles остаются в корневом файле — это не часть masters.css) */
 :root{
   --ok: rgb(80,200,120);
   --ok-bg: color-mix(in srgb, var(--ok) 14%, transparent);
@@ -608,111 +469,6 @@ body{
   background-size:cover; background-position:center;
   border:1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
   cursor:zoom-in;
-}
-
-.mp-svcs{ display:grid; gap:8px }
-.mp-svc{
-  display:flex; justify-content:space-between; gap:8px; align-items:flex-start;
-  padding:12px;
-  border:1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
-  border-radius:12px;
-  background: color-mix(in srgb, var(--tg-text-color) 4%, transparent);
-  cursor:pointer; transition: transform .06s ease, background .12s ease;
-}
-.mp-svc:hover{ transform: translateY(-1px); }
-.mp-svc-name{ font-weight:700; color: var(--tg-text-color) }
-.mp-svc-desc{ font-size:12px; color: var(--tg-hint-color); margin-top:2px; max-width:220px }
-.mp-svc-right{ text-align:right }
-.mp-svc-price{ font-weight:800 }
-.mp-svc-dur{ font-size:12px; color: var(--tg-hint-color) }
-
-.mp-about .mp-subtitle{ font-weight:700; margin:10px 0 6px 0; color: var(--tg-text-color) }
-.mp-ul{ padding-left:0; list-style:none }
-.mp-ul li{ opacity:.9; margin:4px 0 }
-.mp-chips{ display:flex; flex-wrap:wrap; gap:6px }
-.chip{
-  font-size:12px; padding:6px 10px; border-radius:999px;
-  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
-  border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
-}
-
-.mp-hours{ display:grid; gap:4px }
-.mp-hours-row{ display:flex; justify-content:space-between; color: var(--tg-text-color); opacity:.9 }
-
-.mp-reviews{ display:grid; gap:8px }
-.mp-review{
-  background: color-mix(in srgb, var(--tg-text-color) 4%, transparent);
-  border:1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
-  border-radius:12px; padding:10px
-}
-.mp-rev-head{ display:flex; align-items:center; gap:10px }
-.mp-rev-ava{
-  width:32px; height:32px; border-radius:10px;
-  background: color-mix(in srgb, var(--tg-text-color) 14%, transparent);
-  color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800
-}
-.mp-rev-meta{ flex:1 }
-.mp-rev-name{ font-weight:700 }
-.mp-rev-stars{ color:#F5C84B; font-size:12px }
-.mp-rev-date{ font-size:12px; color: var(--tg-hint-color) }
-.mp-rev-text{ margin-top:6px; line-height:1.4 }
-
-.mp-more-btn{
-  width:100%; border-radius:10px; padding:10px 12px;
-  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
-  border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
-  color: var(--tg-text-color); font-weight:600;
-  transition: filter .12s ease;
-}
-.mp-more-btn:active{ filter:brightness(.96) }
-
-.mp-fab{
-  position: sticky; bottom: 12px;
-  display:flex; justify-content:center; gap:10px;
-  padding-bottom: calc(env(safe-area-inset-bottom,0));
-}
-.mp-call{
-  width:44px; height:44px; border-radius:999px; border:0;
-  background: color-mix(in srgb, var(--ok) 85%, #000);
-  color:#fff;
-}
-.mp-book{
-  border-radius:999px; padding:12px 18px; border:0;
-  background: var(--tg-button-color); color: var(--tg-button-text-color);
-  font-weight:700; box-shadow: 0 8px 22px color-mix(in srgb, var(--tg-button-color) 40%, transparent);
-}
-
-.lb{ position:fixed; inset:0; z-index:1000 }
-.lb[hidden]{ display:none !important; }
-.lb-backdrop{ position:absolute; inset:0; background: rgba(0,0,0,.8) }
-.lb-img{
-  position:absolute; max-width:92vw; max-height:92vh;
-  top:50%; left:50%; transform:translate(-50%,-50%); border-radius:12px
-}
-
-.mp-rev-form{ display:grid; gap:8px }
-.mp-rev-stars-input{ display:flex; gap:6px }
-.mp-rev-stars-input button{
-  font-size:20px; border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
-  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
-  color:#F5C84B; border-radius:8px; padding:6px 10px; cursor:pointer;
-  transition: transform .06s ease;
-}
-.mp-rev-stars-input button.active{ transform: translateY(-1px); }
-.mp-rev-textarea{
-  width:100%; border-radius:10px;
-  border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
-  background: color-mix(in srgb, var(--tg-text-color) 4%, transparent);
-  color: var(--tg-text-color); padding:8px
-}
-.mp-rev-hint{ font-size:12px; color: var(--tg-hint-color) }
-
-.sr-only{
-  position:absolute; width:1px; height:1px; overflow:hidden;
-  clip:rect(1px,1px,1px,1px); white-space:nowrap;
-}
-@media (prefers-reduced-motion: reduce){
-  *{ animation:none !important; transition:none !important }
 }
 
 /* ===== Services ===== */

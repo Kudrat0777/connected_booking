@@ -1,10 +1,50 @@
 // Модуль: views/masters.js — экран списка мастеров
+// Обновлённая версия: привёл рендер карточек к безопасной DOM-строительству,
+// добавил markRoute при переходе на профиль мастера (для корректного NavStack/restore),
+// убрал инъекцию данных в innerHTML там, где это было небезопасно,
+// обеспечил ARIA / keyboard accessibility и согласованность с TMA (использование CSS переменных, safe-area не сломаны).
 
 import { api } from '../api.js';
 import { mountTgsFromUrl } from '../ui.js';
 import { toArray, initials } from '../utils.js';
 import { navigate, markRoute, goBackOrHero, $content } from '../navigation.js';
 import { state } from './state.js';
+
+function starSVG(type, gid){
+  const fill = (type==='full') ? '#f6c453' : (type==='half' ? `url(#${gid})` : 'none');
+  const stroke = '#e2b13a';
+  return `
+    <svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:-3px">
+      ${type==='half' ? `
+        <defs>
+          <linearGradient id="${gid}" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="50%" stop-color="#f6c453"/><stop offset="50%" stop-color="transparent"/>
+          </linearGradient>
+        </defs>` : ``}
+      <path d="M12 2.5l2.9 6 6.6.6-5 4.3 1.5 6.4L12 16.9 5.9 19.8 7.4 13.4 2.4 9.1l6.7-.6L12 2.5z"
+            fill="${fill}" stroke="${stroke}" stroke-width="1"/>
+    </svg>`;
+}
+
+function renderStars(val=0){
+  const gid = `g-${Math.random().toString(36).slice(2)}`;
+  const r = Math.max(0, Math.min(5, Number(val)||0));
+  const full = Math.floor(r);
+  const half = r - full >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
+  return `${'x'.repeat(full).split('').map(()=>starSVG('full', gid)).join('')}${
+          half?starSVG('half', gid):''}${
+          'x'.repeat(empty).split('').map(()=>starSVG('empty', gid)).join('')}`;
+}
+
+function specText(master){
+  const arr = Array.isArray(master?.specializations)
+    ? master.specializations.map(s => typeof s === 'string' ? s : (s?.name || '')).filter(Boolean)
+    : [];
+  const base = arr.length ? arr.join(' • ') : (master?.title || master?.profession || 'Специалист');
+  const exp  = Number(master?.experience_years || 0);
+  return `${base}${exp ? ` • ${exp}+ лет` : ''}`;
+}
 
 function renderMasterCard(master, onClick){
   const name   = master?.name || 'Мастер';
@@ -13,77 +53,103 @@ function renderMasterCard(master, onClick){
   const revs   = Number(master?.reviews_count || 0);
   const rateTxt= Number.isFinite(rating) ? rating.toFixed(1) : '0';
 
-  const specText = (m)=>{
-    const arr = Array.isArray(m?.specializations)
-      ? m.specializations.map(s => typeof s === 'string' ? s : (s?.name || '')).filter(Boolean)
-      : [];
-    const base = arr.length ? arr.join(' • ') : (m?.title || m?.profession || 'Специалист');
-    const exp  = Number(m?.experience_years || 0);
-    return `${base}${exp ? ` • ${exp}+ лет` : ''}`;
-  };
-
-  const starSVG = (type, gid)=>{
-    const fill = (type==='full') ? '#f6c453' : (type==='half' ? `url(#${gid})` : 'none');
-    const stroke = '#e2b13a';
-    return `
-      <svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:-3px">
-        ${type==='half' ? `
-          <defs>
-            <linearGradient id="${gid}" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="50%" stop-color="#f6c453"/><stop offset="50%" stop-color="transparent"/>
-            </linearGradient>
-          </defs>` : ``}
-        <path d="M12 2.5l2.9 6 6.6.6-5 4.3 1.5 6.4L12 16.9 5.9 19.8 7.4 13.4 2.4 9.1l6.7-.6L12 2.5z"
-              fill="${fill}" stroke="${stroke}" stroke-width="1"/>
-      </svg>`;
-  };
-
-  const renderStars = (val=0)=>{
-    const gid = `g-${Math.random().toString(36).slice(2)}`;
-    const r = Math.max(0, Math.min(5, Number(val)||0));
-    const full = Math.floor(r);
-    const half = r - full >= 0.5 ? 1 : 0;
-    const empty = 5 - full - half;
-    return `${'x'.repeat(full).split('').map(()=>starSVG('full', gid)).join('')}${
-            half?starSVG('half', gid):''}${
-            'x'.repeat(empty).split('').map(()=>starSVG('empty', gid)).join('')}`;
-  };
-
+  // root cell
   const cell = document.createElement('div');
   cell.className = 'tg-cell ms-card';
   cell.setAttribute('tabindex', '0');
   cell.setAttribute('role', 'button');
   cell.setAttribute('aria-label', `Мастер ${name}, рейтинг ${rateTxt}, ${revs} отзывов`);
+  cell.style.cursor = 'pointer';
 
-  cell.innerHTML = `
-    <div style="display:grid;grid-template-columns:64px 1fr;gap:12px;width:100%">
-      <div class="cb-ava" style="
-        width:56px;height:56px;border-radius:14px;
-        ${ava?`background-image:url('${ava}');background-size:cover;background-position:center;`:
-          `display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;
-           background:color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent);`}
-      ">
-        ${ava ? '' : (initials(name)||'M')}
-      </div>
+  // left / main container
+  const grid = document.createElement('div');
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = '64px 1fr';
+  grid.style.gap = '12px';
+  grid.style.width = '100%';
 
-      <div style="min-width:0">
-        <div class="tg-name" style="margin-right:110px">${name}</div>
-        <div class="tg-sub" style="margin-top:4px">${specText(master)}</div>
+  // avatar container
+  const avaWrap = document.createElement('div');
+  avaWrap.className = 'cb-ava';
+  avaWrap.style.width = '56px';
+  avaWrap.style.height = '56px';
+  avaWrap.style.borderRadius = '14px';
+  avaWrap.style.overflow = 'hidden';
+  avaWrap.style.display = 'grid';
+  avaWrap.style.placeItems = 'center';
+  avaWrap.style.fontWeight = '800';
+  avaWrap.style.color = '#fff';
+  avaWrap.style.backgroundSize = 'cover';
+  avaWrap.style.backgroundPosition = 'center';
 
-        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-          <span>${renderStars(rating)}</span>
-          <span class="tg-sub">(${revs})</span>
-        </div>
-      </div>
-    </div>
+  if (ava) {
+    // set backgroundImage safely
+    try {
+      avaWrap.style.backgroundImage = `url("${ava}")`;
+    } catch (e){
+      avaWrap.style.background = 'color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent)';
+      avaWrap.textContent = initials(name) || 'M';
+    }
+  } else {
+    avaWrap.style.background = 'color-mix(in srgb, var(--tg-theme-text-color,#111) 10%, transparent)';
+    avaWrap.textContent = initials(name) || 'M';
+  }
 
-    <div class="ms-online">
-      <span class="tg-status active" style="padding:6px 10px">
-        <span class="dot"></span><span>Онлайн</span>
-      </span>
-    </div>
-  `;
+  // info column
+  const info = document.createElement('div');
+  info.style.minWidth = '0';
 
+  const title = document.createElement('div');
+  title.className = 'tg-name';
+  title.style.marginRight = '110px';
+  title.textContent = name;
+
+  const sub = document.createElement('div');
+  sub.className = 'tg-sub';
+  sub.style.marginTop = '4px';
+  sub.textContent = specText(master);
+
+  const meta = document.createElement('div');
+  meta.style.marginTop = '8px';
+  meta.style.display = 'flex';
+  meta.style.alignItems = 'center';
+  meta.style.gap = '8px';
+
+  const stars = document.createElement('span');
+  stars.innerHTML = renderStars(rating); // svg string is safe here (generated locally)
+  const revCount = document.createElement('span');
+  revCount.className = 'tg-sub';
+  revCount.textContent = `(${revs})`;
+
+  meta.appendChild(stars);
+  meta.appendChild(revCount);
+
+  info.appendChild(title);
+  info.appendChild(sub);
+  info.appendChild(meta);
+
+  grid.appendChild(avaWrap);
+  grid.appendChild(info);
+
+  // right status column
+  const right = document.createElement('div');
+  right.className = 'ms-online';
+  const statusWrap = document.createElement('span');
+  statusWrap.className = 'tg-status active';
+  statusWrap.style.padding = '6px 10px';
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  const statusText = document.createElement('span');
+  statusText.textContent = 'Онлайн';
+  statusWrap.appendChild(dot);
+  statusWrap.appendChild(statusText);
+  right.appendChild(statusWrap);
+
+  // assemble
+  cell.appendChild(grid);
+  cell.appendChild(right);
+
+  // interaction handlers
   const go = ()=> { if (typeof onClick === 'function') onClick(); };
   cell.addEventListener('click', go);
   cell.addEventListener('keydown', (e)=>{
@@ -94,6 +160,7 @@ function renderMasterCard(master, onClick){
 }
 
 export async function showMasters(){
+  // mark route for TMA/NavStack immediately
   markRoute('masters');
 
   $content.innerHTML = `
@@ -112,19 +179,19 @@ export async function showMasters(){
         <div class="ms-search" id="msSearch">
           <span class="ms-i-left" aria-hidden="true">🔍</span>
           <input id="msInput" type="search" autocomplete="off"
-                 placeholder="Поиск по имени, услуге или описанию…">
-          <span id="msClear" class="ms-i-right" title="Очистить" style="display:none">✕</span>
-          <div id="msSpin" class="cb-spin" style="display:none"></div>
+                 placeholder="Поиск по имени, услуге или описанию…" aria-label="Поиск мастера">
+          <button id="msClear" class="ms-i-right" title="Очистить" style="display:none" aria-hidden="false">✕</button>
+          <div id="msSpin" class="cb-spin" style="display:none" aria-hidden="true"></div>
         </div>
         <div class="ms-meta"><span id="msFound">Найдено: 0</span></div>
       </div>
 
-      <div id="cbLoading" class="cb-loading">
+      <div id="cbLoading" class="cb-loading" role="status" aria-live="polite">
         <div class="cb-spin"></div>
         <div>Загружаем список мастеров…</div>
       </div>
 
-      <div id="cbList" class="tg-list no-frame" style="display:none"></div>
+      <div id="cbList" class="tg-list no-frame" style="display:none" aria-live="polite"></div>
 
       <div id="emptyState" class="tg-empty" style="display:none">
         <div id="emptyAnim" class="empty-anim" aria-hidden="true"></div>
@@ -167,8 +234,11 @@ export async function showMasters(){
 
     toShow.forEach((m, i)=>{
       const onClick = ()=>{
+        // сохраняем маршрут и state для корректного восстановления (TMA/NavStack)
+        markRoute('master_profile', { masterId: m.id });
         state.masterId  = m.id;
         state.masterObj = m;
+        // viewFn: dynamic import; navigate will call the function synchronously (it may return a promise)
         navigate(()=> import('./master_profile.js').then(mod => mod.showMasterPublicProfile(m.id)));
       };
       const card = renderMasterCard(m, onClick);
