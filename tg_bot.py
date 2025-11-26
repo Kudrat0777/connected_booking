@@ -1,80 +1,116 @@
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import asyncio
+import logging
+import os
+from typing import Optional
 
-TOKEN = "8103172288:AAHpH5emrPsPMI30cTtMkIh8SteO2xF_AFc"
-BASE  = "https://a3c2286b16b5.ngrok-free.app"
+from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
-async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    kb = InlineKeyboardMarkup([  # <-- INLINE!
-        [InlineKeyboardButton("Открыть клиент",  web_app=WebAppInfo(url=f"{BASE}/"))],
-        [InlineKeyboardButton("Панель мастера",  web_app=WebAppInfo(url=f"{BASE}/master/"))],
-    ])
-    await update.message.reply_text("Выбери раздел 👇", reply_markup=kb)
+TOKEN = os.getenv("TG_BOT_TOKEN", "8103172288:AAHpH5emrPsPMI30cTtMkIh8SteO2xF_AFc")
+WEBAPP_BASE = os.getenv("WEBAPP_BASE_URL", "https://a3c2286b16b5.ngrok-free.app").rstrip("/")
+ADMIN_ID = os.getenv("1392940334")  # optional: set to numeric string of admin user id
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
 
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.run_polling()
+def build_markup() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Открыть клиент", web_app=WebAppInfo(url=f"{WEBAPP_BASE}/"))],
+            [InlineKeyboardButton("Панель мастера", web_app=WebAppInfo(url=f"{WEBAPP_BASE}/master/"))],
+        ]
+    )
 
+# ---- Handlers ----
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = "Выбери раздел 👇"
+    markup = build_markup()
+    if update.message:
+        await update.message.reply_text(text, reply_markup=markup)
+    elif update.callback_query and update.callback_query.message:
+        await update.callback_query.message.reply_text(text, reply_markup=markup)
 
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("/start — меню\n/help — помощь\n/shutdown — остановить бота (admin)")
 
-# from telegram import (
-#     Update, WebAppInfo,
-#     InlineKeyboardMarkup, InlineKeyboardButton,
-#     ReplyKeyboardMarkup, KeyboardButton,
-#     MenuButtonWebApp
-# )
-# from telegram.ext import (
-#     ApplicationBuilder, ContextTypes,
-#     CommandHandler, MessageHandler, filters
-# )
-#
-# TOKEN = "8266390460:AAETLQKOeQRipJEXwUmJ85sFeLwuWNmDpac"
-# BASE  = "https://a3c2286b16b5.ngrok-free.app"
-#
-# APP_NAME = "CTime"
-# BTN_TEXT = "Запись"
-# WEBAPP_URL = f"{BASE}/"
-#
-# WELCOME_TEXT = (
-#     "Давай начнём! ⏱️\n\n"
-#     "Нажми кнопку ниже, чтобы выбрать мастера и записаться в удобное время."
-# )
-#
-# def inline_markup() -> InlineKeyboardMarkup:
-#     return InlineKeyboardMarkup([
-#         [InlineKeyboardButton(BTN_TEXT, web_app=WebAppInfo(url=WEBAPP_URL))]
-#     ])
-#
-# def reply_markup() -> ReplyKeyboardMarkup:
-#     return ReplyKeyboardMarkup(
-#         [[KeyboardButton(BTN_TEXT, web_app=WebAppInfo(url=WEBAPP_URL))]],
-#         resize_keyboard=True, one_time_keyboard=False, is_persistent=True
-#     )
-#
-# async def greet(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-#     if update.effective_chat and (update.message or update.callback_query):
-#         if update.message:
-#             await update.message.reply_text(WELCOME_TEXT, reply_markup=inline_markup())
-#             await update.message.reply_text(" ", reply_markup=reply_markup())
-#         elif update.callback_query:
-#             await update.callback_query.message.reply_text(WELCOME_TEXT, reply_markup=inline_markup())
-#
-# async def on_startup(app):
-#     try:
-#         await app.bot.set_chat_menu_button(
-#             menu_button=MenuButtonWebApp(text=BTN_TEXT, web_app=WebAppInfo(url=WEBAPP_URL))
-#         )
-#     except Exception as e:
-#         print("Menu Button setup error:", e)
-#
-# def main():
-#     app = ApplicationBuilder().token(TOKEN).post_init(on_startup).build()
-#     app.add_handler(CommandHandler("start", greet))
-#     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greet))
-#     app.add_handler(MessageHandler(~filters.COMMAND, greet))
-#
-#     app.run_polling(allowed_updates=Update.ALL_TYPES)
-#
-# if __name__ == "__main__":
-#     main()
+async def unauthorized_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("У вас нет прав для выполнения этой команды.")
+
+async def shutdown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if ADMIN_ID is None or str(update.effective_user.id) != str(ADMIN_ID):
+        return await unauthorized_reply(update, context)
+
+    await update.message.reply_text("Останавливаю бота...")
+    await context.application.stop()
+
+ASK_NAME = 1
+
+async def ask_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Как вас зовут?")
+    return ASK_NAME
+
+async def received_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    name = update.message.text.strip()
+    await update.message.reply_text(f"Приятно познакомиться, {name}!")
+    return ConversationHandler.END
+
+async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Отмена.")
+    return ConversationHandler.END
+
+async def error_handler(update: Optional[Update], context: ContextTypes.DEFAULT_TYPE):
+    logger.exception("Unhandled exception occurred: %s", context.error)
+    # опционально: отправить уведомление админ/сервису
+    if ADMIN_ID:
+        try:
+            await context.bot.send_message(chat_id=int(ADMIN_ID), text=f"Ошибка: {context.error}")
+        except Exception:
+            logger.exception("Failed to notify admin about error")
+
+# on startup/shutdown
+async def on_startup(app):
+    logger.info("Bot starting. WEBAPP_BASE=%s", WEBAPP_BASE)
+    if TOKEN == "REPLACE_ME_TOKEN":
+        logger.warning("Используется плейсхолдер токена. Установите TG_BOT_TOKEN в окружении.")
+
+async def on_shutdown(app):
+    logger.info("Bot shutting down. Clean up here if needed.")
+    # Если есть фоновые задачи или соединения с БД/Redis, закрыть их здесь.
+
+# ---- main ----
+def main():
+    app = ApplicationBuilder().token(TOKEN).post_init(on_startup).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(CommandHandler("shutdown", shutdown_cmd))
+
+    conv = ConversationHandler(
+        entry_points=[CommandHandler("name", ask_name)],
+        states={ASK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, received_name)]},
+        fallbacks=[CommandHandler("cancel", cancel_conversation)],
+    )
+    app.add_handler(conv)
+
+    # error handler
+    app.add_error_handler(error_handler)
+
+    try:
+        logger.info("Run polling")
+        app.run_polling()
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Stopped by user")
+    finally:
+        logger.info("Exit main")
+
+if __name__ == "__main__":
+    main()
