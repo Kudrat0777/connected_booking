@@ -1,4 +1,6 @@
 // Модуль: views/slots.js — экран выбора времени
+// Обновлено: безопасное построение DOM (без шаблонных innerHTML вставок для динамики),
+// улучшенная доступность, делегирование/обработчики клавиатуры, аккуратное управление состоянием UI.
 
 import { api } from '../api.js';
 import { mountTgsFromUrl } from '../ui.js';
@@ -46,7 +48,7 @@ export async function showSlots(){
         <div>Загружаем доступное время…</div>
       </div>
 
-      <div id="slList" class="sl-list is-hidden"></div>
+      <div id="slList" class="sl-list is-hidden" role="list"></div>
 
       <div id="slEmpty" class="tg-empty sl-empty is-hidden" role="status" aria-live="polite">
         <div id="emptyAnim" class="empty-anim" aria-hidden="true"></div>
@@ -57,8 +59,8 @@ export async function showSlots(){
   `;
   document.getElementById('cbBack').onclick = goBackOrHero;
 
-  const hide = el => el.classList.add('is-hidden');
-  const show = el => el.classList.remove('is-hidden');
+  const hide = el => el && el.classList.add('is-hidden');
+  const show = el => el && el.classList.remove('is-hidden');
 
   const $loading = document.getElementById('slotLoading');
   const $list    = document.getElementById('slList');
@@ -67,7 +69,7 @@ export async function showSlots(){
   const $wkNext  = document.getElementById('wkNext');
   const $wkLabel = document.getElementById('wkLabel');
   const segRoot  = document.querySelector('.sl-seg');
-  const segBtns  = Array.from(segRoot.querySelectorAll('.seg-btn'));
+  const segBtns  = segRoot ? Array.from(segRoot.querySelectorAll('.seg-btn')) : [];
 
   const monthsShort = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
   const dayNames = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
@@ -88,6 +90,7 @@ export async function showSlots(){
   };
   const fmtKey = (ts)=>{ const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
+  // загрузка слотов
   let slots = [];
   try { slots = await api(`/api/slots/?service=${state.serviceId}`, undefined, {allow404:true, fallback:[]}); }
   catch { slots = []; }
@@ -120,10 +123,12 @@ export async function showSlots(){
   prepared.forEach(s => { (groups[fmtKey(s.ts)] ||= []).push(s); });
   const keysSorted = Object.keys(groups).sort();
 
+  // Очистка списка
   $list.innerHTML = '';
   const todayKey = fmtKey(Date.now());
   const tomorrowKey = fmtKey(Date.now() + 86400000);
 
+  // Построение DOM безопасно (createElement), без шаблонного innerHTML для динамики кнопок
   keysSorted.forEach((key)=>{
     const dt = new Date(key + 'T00:00:00');
     const dd = dt.getDate();
@@ -136,49 +141,72 @@ export async function showSlots(){
       key === todayKey    ? 'today'    :
       key === tomorrowKey ? 'tomorrow' : 'other';
 
-    const timesHTML = groups[key]
-      .sort((a,b)=> a.ts - b.ts)
-      .map(s=>{
-        const disabled = s.is_booked ? 'disabled' : '';
-        const cls = `sl-time${s.is_booked ? ' occupied' : ''}`;
-        return `<button type="button" class="${cls}" data-id="${s.id}" ${disabled}
-                  aria-label="Время ${s.label}${s.is_booked?' занято':''}">${s.label}</button>`;
-      }).join('');
-
-    section.innerHTML = `
-      <div class="sl-header">
-        <div class="sl-num">${dd}</div>
-        <div class="sl-info">
-          <div class="sl-day">${dayLabel}</div>
-          <div class="sl-month">${monthsShort[dt.getMonth()]}</div>
-        </div>
-      </div>
-      <div class="sl-times">${timesHTML}</div>
+    // header
+    const header = document.createElement('div');
+    header.className = 'sl-header';
+    header.innerHTML = `
+      <div class="sl-num">${dd}</div>
     `;
+    const info = document.createElement('div');
+    info.className = 'sl-info';
+    const dayEl = document.createElement('div'); dayEl.className='sl-day'; dayEl.textContent = dayLabel;
+    const monEl = document.createElement('div'); monEl.className='sl-month'; monEl.textContent = monthsShort[dt.getMonth()];
+    info.appendChild(dayEl); info.appendChild(monEl);
+    header.appendChild(info);
 
-    section.querySelectorAll('.sl-time').forEach(btn => {
-    if (btn.disabled) return;
-    btn.addEventListener('click', () => {
-    btn.style.transform = 'scale(0.98)';
-    setTimeout(() => (btn.style.transform = ''), 120);
+    // times container
+    const times = document.createElement('div');
+    times.className = 'sl-times';
 
-    state.slotId  = Number(btn.getAttribute('data-id'));
-    state.slotObj = slotById[state.slotId];
+    groups[key]
+      .sort((a,b)=> a.ts - b.ts)
+      .forEach(s=>{
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'sl-time' + (s.is_booked ? ' occupied' : '');
+        btn.dataset.id = s.id;
+        btn.textContent = s.label;
+        if (s.is_booked) {
+          btn.disabled = true;
+          btn.setAttribute('aria-disabled','true');
+        } else {
+          btn.setAttribute('aria-disabled','false');
+        }
 
-    navigate(confirmBooking); // передаём саму функцию, без вызова
-  });
-});
+        // click handler
+        btn.addEventListener('click', () => {
+          // micro-interaction
+          btn.style.transform = 'scale(0.98)';
+          setTimeout(()=> btn.style.transform = '', 120);
 
+          state.slotId  = Number(btn.dataset.id);
+          state.slotObj = slotById[state.slotId];
+
+          // navigate to confirmation screen
+          navigate(confirmBooking);
+        });
+
+        // keyboard support
+        btn.addEventListener('keydown', (e)=>{
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+        });
+
+        times.appendChild(btn);
+      });
+
+    section.appendChild(header);
+    section.appendChild(times);
     $list.appendChild(section);
   });
 
+  // state for week/filters
   let currentWeekStart = startOfWeekMon(new Date());
   let selectedMode = 'all';
 
   function setWeek(ws){
     currentWeekStart = startOfWeekMon(ws);
     const text = labelWeek(currentWeekStart);
-    $wkLabel.textContent = text;
+    if ($wkLabel) $wkLabel.textContent = text;
   }
   function setSeg(mode){
     selectedMode = mode;
@@ -192,6 +220,7 @@ export async function showSlots(){
     const d = new Date(key + 'T00:00:00');
     const ws = startOfWeekMon(currentWeekStart);
     const we = addDays(ws, 6);
+    // compare midnight-to-midnight
     return d >= ws && d <= we;
   }
   function applyFilters(){
@@ -208,38 +237,38 @@ export async function showSlots(){
 
     if (visible === 0){
       show($empty);
+      hide($list);
       if (!document.getElementById('emptyAnim')?.classList.contains('is-filled')){
         mountTgsFromUrl("/static/stickers/duck_crying.tgs", "emptyAnim");
       }
     } else {
       hide($empty);
+      show($list);
+      // scroll first visible into view for better UX
       const firstVis = sections.find(s => s.style.display !== 'none');
       if (firstVis) firstVis.scrollIntoView({block:'start'});
     }
   }
 
-  $wkPrev.addEventListener('click', ()=>{
+  // week navigation
+  if ($wkPrev) $wkPrev.addEventListener('click', ()=>{
     setWeek(addDays(currentWeekStart, -7));
     applyFilters();
-    if ($empty.classList.contains('is-hidden')) return;
-    setSeg('all'); applyFilters();
   });
-  $wkNext.addEventListener('click', ()=>{
+  if ($wkNext) $wkNext.addEventListener('click', ()=>{
     setWeek(addDays(currentWeekStart, +7));
     applyFilters();
-    if ($empty.classList.contains('is-hidden')) return;
-    setSeg('all'); applyFilters();
   });
 
+  // segment buttons
   segBtns.forEach(btn=>{
     btn.addEventListener('click', ()=>{
       setSeg(btn.dataset.mode);
       applyFilters();
-      if (!$empty.classList.contains('is-hidden')){ setSeg('all'); applyFilters(); }
     });
   });
 
-  show($list);
+  // initial state
   setWeek(new Date());
   setSeg('all');
   applyFilters();

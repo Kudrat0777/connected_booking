@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 TOKEN = os.getenv("TG_BOT_TOKEN", "8103172288:AAHpH5emrPsPMI30cTtMkIh8SteO2xF_AFc")
-WEBAPP_BASE = os.getenv("WEBAPP_BASE_URL", "https://a3c2286b16b5.ngrok-free.app").rstrip("/")
+WEBAPP_BASE = os.getenv("WEBAPP_BASE_URL", "https://ef80174ece7f.ngrok-free.app").rstrip("/")
 ADMIN_ID = os.getenv("1392940334")  # optional: set to numeric string of admin user id
 
 logging.basicConfig(

@@ -1,0 +1,104 @@
+/* СТРАНИЦА: modal_success — стили модалки успеха (вынесены отдельно)
+   Использует корневые CSS-переменные из static/css/style.css
+*/
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--tg-theme-bg-color, #0e1621) 55%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 20px;
+}
+
+.modal__sheet {
+  width: min(560px, 94vw);
+  max-width: 560px;
+  background: var(--tg-theme-secondary-bg-color, #0b131b);
+  color: var(--tg-theme-text-color, #e0e9f2);
+  border: 1px solid color-mix(in srgb, var(--tg-theme-text-color, #e0e9f2) 12%, transparent);
+  border-radius: 18px;
+  box-shadow: 0 28px 80px rgba(0,0,0,0.45);
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+  animation: m-pop .18s ease-out;
+}
+
+.modal__head {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+  padding-top: 4px;
+}
+
+.modal__icon {
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--tg-theme-text-color, #e0e9f2) 6%, transparent);
+}
+
+.modal__icon.is-filled { background: transparent; }
+
+.modal__title {
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1.1;
+  color: var(--tg-theme-text-color);
+}
+
+.modal__sub {
+  opacity: 0.85;
+  color: color-mix(in srgb, var(--tg-theme-text-color) 86%, transparent);
+  font-size: 14px;
+  max-width: 86%;
+}
+
+.modal__actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.modal__btn {
+  height: 46px;
+  border-radius: 12px;
+  font-weight: 800;
+  border: 0;
+  cursor: pointer;
+  background: var(--tg-button-color, #2ea6ff);
+  color: var(--tg-button-text-color, #fff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.modal__btn.secondary {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--tg-theme-text-color, #e0e9f2) 14%, transparent);
+  color: var(--tg-theme-text-color, #e0e9f2);
+}
+
+/* small screens – make buttons full width stacked */
+@media (max-width: 480px) {
+  .modal__actions{ grid-auto-flow: row; }
+  .modal__btn{ width: 100%; }
+}
+
+/* Accessibility / reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .modal__sheet{ animation:none; transform:none; }
+}
+
+/* Animations */
+@keyframes m-pop { from{ transform: scale(.98); opacity: 0 } to{ transform: scale(1); opacity:1 } }

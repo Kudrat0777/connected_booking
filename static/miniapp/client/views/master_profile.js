@@ -1,4 +1,7 @@
 // Модуль: views/master_profile.js — экран профиля мастера
+// Обновлённая версия: безопасная работа с DOM, отказ от innerHTML при вставке данных,
+// явное использование textContent, обработчики через addEventListener, markRoute оставлен,
+// улучшена обработка backgroundImage и создание элементов списка.
 
 import { TG, tgUser } from '../telegram.js';
 import { api, csrfToken, setCsrfToken } from '../api.js';
@@ -11,7 +14,7 @@ export async function showMasterPublicProfile(id){
   const mid = id ?? state.masterId;
   markRoute('master_profile', { masterId: mid });
 
-  // восстановление прокрутки
+  // восстановление прокрутки (ScrollMem)
   (() => {
     const st = Route.load();
     const k  = `${st?.name}:${st?.params?.masterId || ''}:${st?.params?.serviceId || ''}:${st?.params?.slotId || ''}`;
@@ -59,7 +62,7 @@ export async function showMasterPublicProfile(id){
 
       <section class="mp-card" id="mpServices" style="display:none">
         <div class="mp-sec-title">💅 Услуги и цены</div>
-        <div id="mpSvcList" class="mp-svcs"></div>
+        <div id="mpSvcList" class="mp-svcs" role="list"></div>
       </section>
 
       <section class="mp-card" id="mpAbout" style="display:none">
@@ -82,11 +85,11 @@ export async function showMasterPublicProfile(id){
 
       <section class="mp-card" id="mpReviews" style="display:none">
         <div class="mp-sec-title">💬 Отзывы клиентов</div>
-        <div id="mpRevList" class="mp-reviews"></div>
+        <div id="mpRevList" class="mp-reviews" role="list"></div>
 
         <div id="mpRevForm" class="mp-rev-form">
           <label class="sr-only" for="revText">Текст отзыва</label>
-          <div class="mp-rev-stars-input" id="revStars" aria-label="Оценка" role="radiогroup">
+          <div class="mp-rev-stars-input" id="revStars" aria-label="Оценка" role="radiogroup">
             <button type="button" data-v="1" role="radio" aria-label="1 звезда">★</button>
             <button type="button" data-v="2" role="radio" aria-label="2 звезды">★</button>
             <button type="button" data-v="3" role="radio" aria-label="3 звезды">★</button>
@@ -110,24 +113,36 @@ export async function showMasterPublicProfile(id){
       <img class="lb-img" id="lbImg" alt="Фото из портфолио">
     </div>
   `;
-  document.getElementById('cbBack').onclick = goBackOrHero;
+
+  // back button
+  const backBtn = document.getElementById('cbBack');
+  if (backBtn) backBtn.addEventListener('click', goBackOrHero);
 
   const absUrl = (u)=> !u ? "" : /^https?:\/\//i.test(u) ? u : new URL(u, location.origin).href;
 
+  // загрузка данных
   let master={}, services=[], schedule=[];
   try{ master    = await api(`/api/masters/${mid}/`); }catch(_){}
   try{ services  = await api(`/api/services/?master=${mid}`) || []; }catch(_){}
   try{ schedule  = await api(`/api/masters/${mid}/work_hours/`) || []; }catch(_){}
 
+  // AVATAR
   const $ava = document.getElementById('mpAva');
-  if (master?.avatar_url){ $ava.style.backgroundImage = `url('${master.avatar_url}')`; }
-  else {
-    const initial = (master?.name||'M').trim().split(/\s+/).map(s=>s[0]).join('').toUpperCase().slice(0,2);
-    $ava.textContent = initial || 'M';
+  if ($ava) {
+    if (master?.avatar_url){
+      try { $ava.style.backgroundImage = `url('${absUrl(master.avatar_url)}')`; }
+      catch { $ava.style.background = 'color-mix(in srgb, var(--tg-text-color, #111) 10%, transparent)'; }
+    } else {
+      const initial = (master?.name||'M').trim().split(/\s+/).map(s=>s[0]).join('').toUpperCase().slice(0,2);
+      $ava.textContent = initial || 'M';
+      $ava.style.background = 'color-mix(in srgb, var(--tg-text-color, #111) 10%, transparent)';
+    }
   }
 
-  document.getElementById('mpName').textContent = master?.name || 'Мастер';
-  document.getElementById('mpSub').textContent =
+  const nameEl = document.getElementById('mpName');
+  const subEl  = document.getElementById('mpSub');
+  if (nameEl) nameEl.textContent = master?.name || 'Мастер';
+  if (subEl) subEl.textContent =
     master?.title
     || master?.profession
     || (Array.isArray(master?.specializations) && master.specializations.length
@@ -136,24 +151,36 @@ export async function showMasterPublicProfile(id){
 
   const rating   = Number(master?.rating || 0) || 0;
   const revCount = Number(master?.reviews_count || 0) || 0;
-  document.getElementById('mpRatingNum').textContent = rating ? rating.toFixed(1) : '—';
-  document.getElementById('mpRevCount').textContent  = `(${revCount} отзывов)`;
-  document.getElementById('mpOnline').style.display  = (master?.online===false) ? 'none' : 'inline-flex';
+  const mpRatingNum = document.getElementById('mpRatingNum');
+  const mpRevCount  = document.getElementById('mpRevCount');
+  const mpOnline    = document.getElementById('mpOnline');
+  if (mpRatingNum) mpRatingNum.textContent = rating ? rating.toFixed(1) : '—';
+  if (mpRevCount) mpRevCount.textContent  = `(${revCount} отзывов)`;
+  if (mpOnline) mpOnline.style.display  = (master?.online===false) ? 'none' : 'inline-flex';
 
+  // BIO
   if (master?.bio){
-    document.getElementById('mpBio').textContent = master.bio;
-    document.getElementById('mpBioBox').style.display='block';
+    const bioEl = document.getElementById('mpBio');
+    if (bioEl) bioEl.textContent = master.bio;
+    const bioBox = document.getElementById('mpBioBox');
+    if (bioBox) bioBox.style.display='block';
   }
 
+  // Stats
   const exp = Number(master?.experience_years||0);
   const clients = Number(master?.clients_count||0);
   if (exp || clients || rating){
-    document.getElementById('mpYears').textContent   = exp ? `${exp}+` : '—';
-    document.getElementById('mpClients').textContent = clients ? `${clients}` : '—';
-    document.getElementById('mpSatisfy').textContent = rating ? `${Math.round((rating/5)*100)}%` : '—';
-    document.getElementById('mpStats').style.display = 'grid';
+    const yearsEl = document.getElementById('mpYears');
+    const clientsEl = document.getElementById('mpClients');
+    const satisfyEl = document.getElementById('mpSatisfy');
+    if (yearsEl) yearsEl.textContent = exp ? `${exp}+` : '—';
+    if (clientsEl) clientsEl.textContent = clients ? `${clients}` : '—';
+    if (satisfyEl) satisfyEl.textContent = rating ? `${Math.round((rating/5)*100)}%` : '—';
+    const stats = document.getElementById('mpStats');
+    if (stats) stats.style.display = 'grid';
   }
 
+  // SERVICES — безопасно создаём элементы
   if (Array.isArray(services) && services.length){
     const box = document.getElementById('mpSvcList');
     services.forEach(s=>{
@@ -161,19 +188,33 @@ export async function showMasterPublicProfile(id){
       el.className = 'mp-svc';
       el.setAttribute('role','button');
       el.setAttribute('aria-label', `${s.name||'Услуга'}`);
-      el.innerHTML = `
-        <div class="mp-svc-left">
-          <div class="mp-svc-name">${s.name||'Услуга'}</div>
-          <div class="mp-svc-desc">${s.description||''}</div>
-        </div>
-        <div class="mp-svc-right">
-          <div class="mp-svc-price">${(s.price ?? 0) ? `${s.price} ₽`:'— ₽'}</div>
-          <div class="mp-svc-dur">${(s.duration ?? 0) ? `${s.duration} мин`:'0 мин'}</div>
-        </div>`;
-      el.onclick = ()=>{ state.serviceId = s.id; state.serviceObj = s; navigate(()=> import('./slots.js').then(mod => mod.showSlots())); };
+
+      const left = document.createElement('div'); left.className = 'mp-svc-left';
+      const svcName = document.createElement('div'); svcName.className = 'mp-svc-name'; svcName.textContent = s.name||'Услуга';
+      const svcDesc = document.createElement('div'); svcDesc.className = 'mp-svc-desc'; svcDesc.textContent = s.description||'';
+      left.appendChild(svcName);
+      left.appendChild(svcDesc);
+
+      const right = document.createElement('div'); right.className = 'mp-svc-right';
+      const price = document.createElement('div'); price.className = 'mp-svc-price'; price.textContent = (s.price ?? 0) ? `${s.price} ₽`:'— ₽';
+      const dur = document.createElement('div'); dur.className = 'mp-svc-dur'; dur.textContent = (s.duration ?? 0) ? `${s.duration} мин`:'0 мин';
+      right.appendChild(price);
+      right.appendChild(dur);
+
+      el.appendChild(left);
+      el.appendChild(right);
+
+      el.addEventListener('click', ()=>{
+        state.serviceId = s.id;
+        state.serviceObj = s;
+        // mark route to preserve NavStack context
+        markRoute('slots', { masterId: mid, serviceId: s.id });
+        navigate(()=> import('./slots.js').then(mod => mod.showSlots()));
+      });
       box.appendChild(el);
     });
-    document.getElementById('mpServices').style.display='block';
+    const svcBox = document.getElementById('mpServices');
+    if (svcBox) svcBox.style.display='block';
   }
 
   const edu = master?.education || master?.certificates || [];
@@ -186,7 +227,7 @@ export async function showMasterPublicProfile(id){
         li.textContent = `• ${typeof e==='string'?e:(e.title||e.name||e.caption||'Сертификат')}`;
         ul.appendChild(li);
       });
-      document.getElementById('mpEduBox').style.display='block';
+      const box = document.getElementById('mpEduBox'); if (box) box.style.display='block';
     }
     if (specs && specs.length){
       const cont = document.getElementById('mpSpecs');
@@ -195,21 +236,24 @@ export async function showMasterPublicProfile(id){
         chip.textContent = (typeof s==='string'?s:(s.name||'Специализация'));
         cont.appendChild(chip);
       });
-      document.getElementById('mpSpecBox').style.display='block';
+      const box = document.getElementById('mpSpecBox'); if (box) box.style.display='block';
     }
     if (schedule && schedule.length){
       const box = document.getElementById('mpHours');
       schedule.forEach(row=>{
         const line=document.createElement('div'); line.className='mp-hours-row';
         const closed = row.is_closed ? 'Выходной' : `${row.open||'—'} - ${row.close||'—'}`;
-        line.innerHTML = `<span>${row.day_ru||row.day||''}</span><span>${closed}</span>`;
+        const left = document.createElement('span'); left.textContent = row.day_ru||row.day||'';
+        const right = document.createElement('span'); right.textContent = closed;
+        line.appendChild(left); line.appendChild(right);
         box.appendChild(line);
       });
-      document.getElementById('mpHoursBox').style.display='block';
+      const boxEl = document.getElementById('mpHoursBox'); if (boxEl) boxEl.style.display='block';
     }
-    document.getElementById('mpAbout').style.display='block';
+    const aboutBox = document.getElementById('mpAbout'); if (aboutBox) aboutBox.style.display='block';
   }
 
+  // PORTFOLIO
   const $grid = document.getElementById('mpGrid');
   const $morePF = document.getElementById('mpMorePortfolio');
   let pfOffset = 0, pfLimit = 8, pfTotal = 0, pfLoading = false;
@@ -229,51 +273,59 @@ export async function showMasterPublicProfile(id){
         item.setAttribute('aria-label','Фото работы');
         if (url){
           const full = absUrl(url);
-          item.style.backgroundImage = `url('${full}')`;
+          try { item.style.backgroundImage = `url('${full}')`; } catch(e){}
           item.addEventListener('click', ()=> openLB(full));
         }
         $grid.appendChild(item);
       });
-      document.getElementById('mpPortfolio').style.display='block';
+      const portBox = document.getElementById('mpPortfolio'); if (portBox) portBox.style.display='block';
       pfOffset += items.length;
-      $morePF.style.display = (pfOffset < (pfTotal||0)) ? 'block' : 'none';
+      if ($morePF) $morePF.style.display = (pfOffset < (pfTotal||0)) ? 'block' : 'none';
     }catch(_){}
     finally{ pfLoading = false; }
   }
-  $morePF.addEventListener('click', loadPortfolio);
+  if ($morePF) $morePF.addEventListener('click', loadPortfolio);
   await loadPortfolio();
 
   const $revBox  = document.getElementById('mpReviews');
   const $revList = document.getElementById('mpRevList');
 
-  function addReviewCard(r){
+  function addReviewCard(r, prepend = false){
     const el = document.createElement('div');
     el.className='mp-review';
-    const name = r.author_name || r.user || 'Клиент';
+
+    const head = document.createElement('div'); head.className = 'mp-rev-head';
+    const ava = document.createElement('div'); ava.className = 'mp-rev-ava';
+    ava.textContent = ((r.author_name || r.user || 'Клиент')[0] || 'К').toUpperCase();
+    const meta = document.createElement('div'); meta.className = 'mp-rev-meta';
+    const nm = document.createElement('div'); nm.className='mp-rev-name'; nm.textContent = r.author_name || r.user || 'Клиент';
+    const stars = document.createElement('div'); stars.className='mp-rev-stars'; stars.setAttribute('aria-label', `Оценка: ${r.rating || r.stars || 5} из 5`);
     const starsN = Math.max(1,Math.min(5,Number(r.rating||r.stars||5)));
-    const stars  = '★★★★★'.slice(0,starsN) + '☆☆☆☆☆'.slice(starsN);
-    el.innerHTML = `
-      <div class="mp-rev-head">
-        <div class="mp-rev-ava">${(name||'')[0]?.toUpperCase()||'К'}</div>
-        <div class="mp-rev-meta">
-          <div class="mp-rev-name">${name}</div>
-          <div class="mp-rev-stars" aria-label="Оценка: ${starsN} из 5">${stars}</div>
-        </div>
-        <div class="mp-rev-date">${r.created_at? new Date(r.created_at).toLocaleDateString('ru-RU'):''}</div>
-      </div>
-      <div class="mp-rev-text">${r.text||r.comment||''}</div>`;
-    $revList.appendChild(el);
+    stars.textContent = '★★★★★'.slice(0,starsN) + '☆☆☆☆☆'.slice(starsN);
+    meta.appendChild(nm); meta.appendChild(stars);
+
+    const date = document.createElement('div'); date.className = 'mp-rev-date';
+    date.textContent = r.created_at? new Date(r.created_at).toLocaleDateString('ru-RU'): '';
+
+    head.appendChild(ava); head.appendChild(meta); head.appendChild(date);
+
+    const text = document.createElement('div'); text.className='mp-rev-text'; text.textContent = r.text||r.comment||'';
+
+    el.appendChild(head); el.appendChild(text);
+
+    if (prepend && $revList.firstChild) $revList.insertBefore(el, $revList.firstChild);
+    else $revList.appendChild(el);
   }
 
   try{
     const initial = await api(`/api/reviews/?master=${mid}&limit=3`);
-    if (Array.isArray(initial) && initial.length){
-      initial.forEach(addReviewCard);
-      $revBox.style.display = 'block';
+    if (Array.isArray(initial)){
+      initial.forEach(r => addReviewCard(r));
+      if ($revBox) $revBox.style.display = 'block';
     } else {
-      $revBox.style.display = 'block';
+      if ($revBox) $revBox.style.display = 'block';
     }
-  }catch(_){}
+  }catch(_){ if ($revBox) $revBox.style.display = 'block'; }
 
   const $revStarsBox = document.getElementById('revStars');
   const $revText     = document.getElementById('revText');
@@ -282,6 +334,7 @@ export async function showMasterPublicProfile(id){
 
   let revRating = 5;
   function updateStarsUI(val){
+    if (!$revStarsBox) return;
     Array.from($revStarsBox.querySelectorAll('button')).forEach(btn=>{
       const v = Number(btn.dataset.v||0);
       btn.classList.toggle('active', v <= val);
@@ -290,87 +343,83 @@ export async function showMasterPublicProfile(id){
   }
   updateStarsUI(revRating);
 
-  $revStarsBox.addEventListener('click', (e)=>{
-    const b = e.target.closest('button[data-v]');
-    if (!b) return;
-    revRating = Number(b.dataset.v||5);
-    updateStarsUI(revRating);
+  if ($revStarsBox) {
+    $revStarsBox.addEventListener('click', (e)=>{
+      const b = e.target.closest('button[data-v]');
+      if (!b) return;
+      revRating = Number(b.dataset.v||5);
+      updateStarsUI(revRating);
+    });
+  }
+
+  if ($revSubmit) {
+    $revSubmit.addEventListener('click', async ()=>{
+      if (!tgUser?.id){
+        toast('Откройте через Telegram, чтобы оставить отзыв');
+        return;
+      }
+      const payload = {
+        master: mid,
+        rating: revRating,
+        text: ($revText.value||'').trim(),
+        author_name: (TG()?.initDataUnsafe?.user?.first_name || 'Клиент'),
+        telegram_id: tgUser.id
+      };
+      $revSubmit.disabled = true; if ($revHint) $revHint.style.display = 'none';
+      try{
+        if (!csrfToken) {
+          try {
+            const stored = sessionStorage.getItem('csrfToken');
+            if (stored) setCsrfToken(stored);
+          } catch (_) {}
+        }
+        const r = await api('/api/reviews/add/', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        addReviewCard(r, true);
+
+        const numEl = document.getElementById('mpRevCount');
+        if (numEl){
+          const m = (numEl.textContent||'').match(/\d+/);
+          const cur = m ? Number(m[0]) : 0;
+          numEl.textContent = `(${cur+1} отзывов)`;
+        }
+
+        $revText.value = '';
+        revRating = 5; updateStarsUI(revRating);
+        if ($revHint){ $revHint.textContent = 'Спасибо! Ваш отзыв добавлен.'; $revHint.style.display='block'; }
+      }catch(_){
+        if ($revHint){ $revHint.textContent = 'Не удалось отправить отзыв.'; $revHint.style.display = 'block'; }
+      }finally{
+        $revSubmit.disabled = false;
+      }
+    });
+  }
+
+  // NAV actions
+  const mpBookBtn = document.getElementById('mpBook');
+  if (mpBookBtn) mpBookBtn.addEventListener('click', ()=> {
+    markRoute('services', { masterId: mid });
+    navigate(()=> import('./services.js').then(m => m.showServices()));
   });
 
-  $revSubmit.addEventListener('click', async ()=>{
-    if (!tgUser?.id){
-      toast('Откройте через Telegram, чтобы оставить отзыв');
-      return;
-    }
-    const payload = {
-      master: mid,
-      rating: revRating,
-      text: ($revText.value||'').trim(),
-      author_name: (TG()?.initDataUnsafe?.user?.first_name || 'Клиент'),
-      telegram_id: tgUser.id
-    };
-    $revSubmit.disabled = true; $revHint.style.display = 'none';
-    try{
-      if (!csrfToken) {
-        try {
-          const stored = sessionStorage.getItem('csrfToken');
-          if (stored) setCsrfToken(stored);
-        } catch (_) {}
-      }
-      const r = await api('/api/reviews/add/', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      const first = document.createElement('div');
-      const name = r.author_name || 'Клиент';
-      const sn = Math.max(1,Math.min(5,Number(r.rating||5)));
-      const st = '★★★★★'.slice(0,sn) + '☆☆☆☆☆'.slice(sn);
-      first.className='mp-review';
-      first.innerHTML = `
-        <div class="mp-rev-head">
-          <div class="mp-rev-ava">${(name||'')[0]?.toUpperCase()||'К'}</div>
-          <div class="mp-rev-meta">
-            <div class="mp-rev-name">${name}</div>
-            <div class="mp-rev-stars" aria-label="Оценка: ${sn} из 5">${st}</div>
-          </div>
-          <div class="mp-rev-date">${r.created_at? new Date(r.created_at).toLocaleDateString('ru-RU'): new Date().toLocaleDateString('ru-RU')}</div>
-        </div>
-        <div class="mp-rev-text">${r.text||''}</div>`;
-      $revList.prepend(first);
-
-      const numEl = document.getElementById('mpRevCount');
-      if (numEl){
-        const m = (numEl.textContent||'').match(/\d+/);
-        const cur = m ? Number(m[0]) : 0;
-        numEl.textContent = `(${cur+1} отзывов)`;
-      }
-
-      $revText.value = '';
-      revRating = 5; updateStarsUI(revRating);
-      $revHint.textContent = 'Спасибо! Ваш отзыв добавлен.'; $revHint.style.display='block';
-    }catch(_){
-      $revHint.textContent = 'Не удалось отправить отзыв. Возможна причина: не было прошедшей записи.';
-      $revHint.style.display = 'block';
-    }finally{
-      $revSubmit.disabled = false;
-    }
-  });
-
-  document.getElementById('mpBook').onclick = ()=> navigate(()=> import('./services.js').then(m => m.showServices()));
-  document.getElementById('mpCall').onclick = ()=>{
+  const mpCallBtn = document.getElementById('mpCall');
+  if (mpCallBtn) mpCallBtn.addEventListener('click', ()=>{
     const tel = master?.phone || '+7 (999) 123-45-67';
     try{ window.location.href = `tel:${tel.replace(/[^\d+]/g,'')}`; }catch(_){ toast(`Телефон: ${tel}`); }
-  };
+  });
 
+  // Lightbox
   function openLB(src){
     const lb=document.getElementById('lb'); const img=document.getElementById('lbImg');
+    if (!lb || !img) return;
     img.src=src; lb.removeAttribute('hidden');
   }
-  document.getElementById('lbClose').addEventListener('click', ()=>{
-    document.getElementById('lb').setAttribute('hidden','');
-  });
+  const lbClose = document.getElementById('lbClose');
+  if (lbClose) lbClose.addEventListener('click', ()=> document.getElementById('lb')?.setAttribute('hidden',''));
   document.addEventListener('keydown', (e)=>{
-    if (e.key==='Escape') document.getElementById('lb').setAttribute('hidden','');
+    if (e.key==='Escape') document.getElementById('lb')?.setAttribute('hidden','');
   });
 }

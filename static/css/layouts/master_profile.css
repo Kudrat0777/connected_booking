@@ -1,0 +1,143 @@
+/* СТРАНИЦА: Master Profile
+   Файл с CSS-правилами, специфичными для страницы профиля мастера.
+   Использует корневые TMA-переменные (--tg-theme-*) из style.css.
+*/
+
+/* Wrapper / cards */
+.mp-wrap{ padding:12px; display:grid; gap:10px; background: var(--tg-bg-color); color: var(--tg-text-color); }
+
+/* Card base */
+.mp-card{
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  border: 1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.06);
+}
+
+/* Head */
+.mp-head{ display:flex; gap:12px; align-items:flex-start; }
+.mp-ava{
+  width:72px; height:72px; border-radius:16px;
+  background: color-mix(in srgb, var(--tg-text-color) 10%, transparent);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; color:#fff; background-size:cover; background-position:center;
+  user-select:none;
+}
+.mp-head-info{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+
+/* Title & subtitle */
+.mp-name{ font-size:20px; font-weight:800; color: var(--tg-text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mp-sub{ color: var(--tg-hint-color); margin-top:2px; }
+
+/* Rating / online */
+.mp-rating{ display:flex; align-items:center; gap:8px; margin-top:6px }
+.mp-rating .stars{ color:#F5C84B; letter-spacing:.5px; }
+.mp-rating-num{ font-weight:800; }
+.mp-rev-count{ color: var(--tg-hint-color); font-size:13px; }
+
+.mp-online{
+  margin-top:6px;
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px; font-weight:700; font-size:13px;
+  color: rgb(80,200,120); background: color-mix(in srgb, rgb(80,200,120) 14%, transparent);
+  border:1px solid color-mix(in srgb, rgb(80,200,120) 28%, transparent);
+  width:max-content;
+}
+.mp-online .dot{ width:8px; height:8px; border-radius:50%; background: currentColor; }
+
+/* Bio */
+.mp-bio{ line-height:1.45; color: var(--tg-text-color); opacity:.95 }
+
+/* Stats grid */
+.mp-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; text-align:center }
+.mp-stat-value{ font-size:22px; font-weight:800; }
+.mp-stat-label{ font-size:12px; color: var(--tg-hint-color); }
+
+/* Portfolio grid */
+.mp-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px }
+@media(min-width:480px){ .mp-grid{ grid-template-columns:repeat(3,1fr) } }
+.mp-ph{
+  width:100%; aspect-ratio:1/1; border-radius:12px;
+  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
+  background-size:cover; background-position:center;
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
+  cursor:zoom-in;
+}
+
+/* Services */
+.mp-svcs{ display:grid; gap:8px }
+.mp-svc{
+  display:flex; justify-content:space-between; gap:8px; align-items:flex-start;
+  padding:12px;
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
+  border-radius:12px;
+  background: color-mix(in srgb, var(--tg-text-color) 4%, transparent);
+  cursor:pointer; transition: transform .06s ease, background .12s ease;
+}
+.mp-svc:hover{ transform: translateY(-1px); }
+.mp-svc-left{ max-width:70%; }
+.mp-svc-name{ font-weight:700; color: var(--tg-text-color) }
+.mp-svc-desc{ font-size:12px; color: var(--tg-hint-color); margin-top:2px; }
+.mp-svc-right{ text-align:right }
+.mp-svc-price{ font-weight:800 }
+.mp-svc-dur{ font-size:12px; color: var(--tg-hint-color) }
+
+/* About chips, hours */
+.mp-chips{ display:flex; flex-wrap:wrap; gap:6px }
+.chip{ font-size:12px; padding:6px 10px; border-radius:999px;
+  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
+}
+
+/* Reviews */
+.mp-reviews{ display:grid; gap:8px }
+.mp-review{
+  background: color-mix(in srgb, var(--tg-text-color) 4%, transparent);
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
+  border-radius:12px; padding:10px;
+}
+.mp-rev-head{ display:flex; align-items:center; gap:10px }
+.mp-rev-ava{
+  width:32px; height:32px; border-radius:10px;
+  background: color-mix(in srgb, var(--tg-text-color) 14%, transparent);
+  color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800
+}
+.mp-rev-meta{ flex:1 }
+.mp-rev-name{ font-weight:700 }
+.mp-rev-stars{ color:#F5C84B; font-size:12px }
+.mp-rev-date{ font-size:12px; color: var(--tg-hint-color) }
+.mp-rev-text{ margin-top:6px; line-height:1.4 }
+
+/* Review form */
+.mp-rev-form{ display:grid; gap:8px; margin-top:8px }
+.mp-rev-stars-input{ display:flex; gap:6px }
+.mp-rev-stars-input button{
+  font-size:20px; border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
+  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
+  color:#F5C84B; border-radius:8px; padding:6px 10px; cursor:pointer;
+  transition: transform .06s ease;
+}
+.mp-rev-stars-input button.active{ transform: translateY(-1px); }
+.mp-rev-textarea{
+  width:100%; border-radius:10px;
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
+  background: color-mix(in srgb, var(--tg-text-color) 4%, transparent);
+  color: var(--tg-text-color); padding:8px
+}
+.mp-rev-hint{ font-size:12px; color: var(--tg-hint-color) }
+
+/* FAB actions */
+.mp-fab{ position: sticky; bottom: 12px; display:flex; justify-content:center; gap:10px; padding-bottom: calc(env(safe-area-inset-bottom,0)); }
+.mp-call{ width:44px; height:44px; border-radius:999px; border:0; background: color-mix(in srgb, rgb(80,200,120) 85%, #000); color:#fff; }
+.mp-book{ border-radius:999px; padding:12px 18px; border:0; background: var(--tg-button-color); color: var(--tg-button-text-color); font-weight:700; }
+
+/* Lightbox */
+.lb{ position:fixed; inset:0; z-index:1000 }
+.lb[hidden]{ display:none !important; }
+.lb-backdrop{ position:absolute; inset:0; background: rgba(0,0,0,.8) }
+.lb-img{ position:absolute; max-width:92vw; max-height:92vh; top:50%; left:50%; transform:translate(-50%,-50%); border-radius:12px }
+
+/* Accessibility focus */
+.mp-svc:focus, .mp-ph:focus, .mp-more-btn:focus { outline: 3px solid color-mix(in srgb, var(--tg-link-color) 30%, transparent); outline-offset: 2px; }

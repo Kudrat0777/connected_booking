@@ -1,0 +1,62 @@
+/* СТРАНИЦА: Services
+   Файл с CSS-правилами, специфичными для страницы выбора услуг.
+   Использует корневые TMA-переменные (--tg-theme-*) из style.css.
+*/
+
+.sv-list{
+  display:grid;
+  gap:12px;
+  padding-top:8px;
+}
+
+/* Service card */
+.sv-card{
+  position: relative;
+  display:grid;
+  grid-template-columns: 1fr auto;
+  align-items:center;
+  gap:12px;
+  padding:14px;
+  border-radius:16px;
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 10%, transparent);
+  cursor: pointer;
+  transition: transform .06s ease, background .12s ease, border-color .12s ease;
+}
+.sv-card:active{ transform: scale(.98); }
+
+/* Main column */
+.sv-main{ min-width:0; }
+.sv-title{
+  font-weight:800; font-size:16px; color: var(--tg-text-color);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.sv-desc{
+  margin-top:4px; color: var(--tg-hint-color);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.sv-meta{ margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+.sv-chip{
+  font-size:12px; padding:6px 10px; border-radius:999px;
+  background: color-mix(in srgb, var(--tg-text-color) 6%, transparent);
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
+  color: var(--tg-text-color);
+}
+
+/* Right column */
+.sv-right{
+  display:grid; gap:6px; justify-items:end; align-content:center; min-width:84px;
+}
+.sv-price{ font-weight:800; }
+.sv-arrow{
+  width:28px; height:28px; display:grid; place-items:center; border-radius:999px;
+  border:1px solid color-mix(in srgb, var(--tg-text-color) 12%, transparent);
+  background: color-mix(in srgb, var(--tg-text-color) 4%, transparent);
+  user-select:none;
+}
+
+/* Responsive tweaks */
+@media (min-width:480px){
+  .sv-list{ gap:14px; }
+}

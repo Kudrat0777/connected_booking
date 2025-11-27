@@ -1,16 +1,16 @@
 // Модуль: views/confirm.js — экран подтверждения и создание брони
+// Обновлён: безопасная работа с DOM, исправлены опечатки, явная работа с MainButton,
+// улучшена локализация строки подтверждения и обработка ошибок.
 
 import { TG, tgUser } from '../telegram.js';
 import { api } from '../api.js';
 import { toast, mountTgsFromUrl } from '../ui.js';
 import { markRoute, goBackOrHero, $content } from '../navigation.js';
 import { state } from './state.js';
-import { showSuccessModal } from './modal_success.js'; // см. ниже (микро-компонент)
+import { showSuccessModal } from './modal_success.js';
 
 export function confirmBooking(){
   markRoute('confirm', { masterId: state.masterId, serviceId: state.serviceId, slotId: state.slotId });
-
-  // восстановление скролла не критично, опущено для краткости
 
   const svcName    = state.serviceObj?.name || 'Услуга';
   const masterName = state.masterObj?.name  || 'Мастер';
@@ -23,6 +23,7 @@ export function confirmBooking(){
   const dateStr = when ? when.toLocaleDateString('ru-RU',{weekday:'long',day:'2-digit',month:'long'}) : `Слот #${state.slotId}`;
   const timeStr = when ? when.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '—:—';
 
+  // Рисуем структуру страницы — минимально динамична, содержимое вставляем безопасно ниже
   $content.innerHTML = `
     <div class="tg-header">
       <button class="tg-back" id="cbBack" aria-label="Назад">←</button>
@@ -30,54 +31,10 @@ export function confirmBooking(){
     </div>
     <div class="tg-sep"></div>
 
-    <div class="tg-wrap cnf-wrap">
+    <div class="tg-wrap cnf-wrap" id="cnfRoot">
       <div id="cnfSticker" class="cnf-sticker" aria-hidden="true"></div>
 
-      <section class="cnf-card" aria-labelledby="cnfTitle">
-        <div class="cnf-head">
-          <div class="cnf-ava" id="cnfAva">${ava ? '' : initialsTxt}</div>
-          <div style="min-width:0">
-            <div class="cnf-title" id="cnfTitle">${svcName}</div>
-            <div class="cnf-sub">Мастер: ${masterName}</div>
-          </div>
-        </div>
-
-        <div class="cnf-rows" role="list">
-          <div class="cnf-row" role="listitem">
-            <div class="cnf-ic" aria-hidden="true">🗓️</div>
-            <div>
-              <div class="cnf-lab">Дата</div>
-              <div class="cnf-val">${dateStr}</div>
-            </div>
-            <div class="cnf-meta">
-              <div class="cnf-lab">Время</div>
-              <div class="cnf-val">${timeStr}</div>
-            </div>
-          </div>
-
-          <div class="cnf-row" role="listitem">
-            <div class="cnf-ic" aria-hidden="true">⏱️</div>
-            <div>
-              <div class="cnf-lab">Длительность</div>
-              <div class="cnf-val">${duration ? `${duration} мин` : '—'}</div>
-            </div>
-            <div class="cnf-meta">
-              <div class="cnf-lab">Стоимость</div>
-              <div class="cnf-price">${price != null ? `${price} ₽` : '—'}</div>
-            </div>
-          </div>
-
-          <div class="cnf-row" role="listitem">
-            <div class="cnf-ic" aria-hidden="true">👤</div>
-            <div>
-              <div class="cnf-lab">Мастер</div>
-              <div class="cnf-val">${masterName}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="cnф-note">Нажимая «Подтвердить бронь», вы создаёте запись в выбранное время.</div>
-      </section>
+      <section class="cnf-card" aria-labelledby="cnfTitle" id="cnfCard"></section>
 
       <div class="cnf-actions" id="cnfActions">
         <button id="confirmBtn" class="cnf-btn primary">✓ Подтвердить бронь</button>
@@ -86,9 +43,88 @@ export function confirmBooking(){
     </div>
   `;
 
-  const $ava = document.getElementById('cnfAva');
-  if (ava) { $ava.style.backgroundImage = `url('${ava}')`; }
+  // Собираем содержимое карточки безопасно
+  const cnfCard = document.getElementById('cnfCard');
 
+  // Head
+  const head = document.createElement('div');
+  head.className = 'cnf-head';
+
+  const avaEl = document.createElement('div');
+  avaEl.className = 'cnf-ava';
+  avaEl.id = 'cnfAva';
+  if (ava) {
+    // установим фон изображения; защищаем от некорректного URL
+    try { avaEl.style.backgroundImage = `url('${ava}')`; } catch(_) { avaEl.textContent = initialsTxt; }
+  } else {
+    avaEl.textContent = initialsTxt;
+  }
+
+  const headInfo = document.createElement('div');
+  headInfo.style.minWidth = '0';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'cnf-title';
+  titleEl.id = 'cnfTitle';
+  titleEl.textContent = svcName;
+  const subEl = document.createElement('div');
+  subEl.className = 'cnf-sub';
+  subEl.textContent = `Мастер: ${masterName}`;
+
+  headInfo.appendChild(titleEl);
+  headInfo.appendChild(subEl);
+
+  head.appendChild(avaEl);
+  head.appendChild(headInfo);
+
+  // Rows list
+  const rows = document.createElement('div');
+  rows.className = 'cnf-rows';
+  rows.setAttribute('role','list');
+
+  function makeRow(icon, label, value, metaLabel, metaValue) {
+    const row = document.createElement('div');
+    row.className = 'cnf-row';
+    row.setAttribute('role','listitem');
+
+    const ic = document.createElement('div');
+    ic.className = 'cnf-ic';
+    ic.setAttribute('aria-hidden','true');
+    ic.textContent = icon;
+
+    const left = document.createElement('div');
+    const lab = document.createElement('div'); lab.className='cnf-lab'; lab.textContent = label;
+    const val = document.createElement('div'); val.className='cnf-val'; val.textContent = value;
+    left.appendChild(lab); left.appendChild(val);
+
+    row.appendChild(ic);
+    row.appendChild(left);
+
+    if (metaLabel || metaValue){
+      const meta = document.createElement('div');
+      meta.className = 'cnf-meta';
+      const mLab = document.createElement('div'); mLab.className='cnf-lab'; mLab.textContent = metaLabel || '';
+      const mVal = document.createElement('div'); mVal.className='cnf-price'; mVal.textContent = metaValue || '';
+      meta.appendChild(mLab); meta.appendChild(mVal);
+      row.appendChild(meta);
+    }
+
+    return row;
+  }
+
+  rows.appendChild(makeRow('🗓️', 'Дата', dateStr, 'Время', timeStr));
+  rows.appendChild(makeRow('⏱️', 'Длительность', duration ? `${duration} мин` : '—', 'Стоимость', price != null ? `${price} ₽` : '—'));
+  rows.appendChild(makeRow('👤', 'Мастер', masterName, '', ''));
+
+  // Note / disclaimer (fixed class name cnf-note)
+  const note = document.createElement('div');
+  note.className = 'cnf-note';
+  note.textContent = 'Нажимая «Подтвердить бронь», вы создаёте запись в выбранное время.';
+
+  cnfCard.appendChild(head);
+  cnfCard.appendChild(rows);
+  cnfCard.appendChild(note);
+
+  // sticker
   try {
     mountTgsFromUrl('/static/stickers/duck_ok.tgs', 'cnfSticker');
     setTimeout(()=> {
@@ -97,24 +133,31 @@ export function confirmBooking(){
     }, 300);
   } catch(_) {}
 
-  const tg = TG();
+  // Elements & handlers
+  const backBtn = document.getElementById('cbBack');
+  if (backBtn) backBtn.addEventListener('click', ()=> { cleanupMainButton(); goBackOrHero(); });
+
   const $confirm = document.getElementById('confirmBtn');
   const $cancel  = document.getElementById('cancelBtn');
   const $actions = document.getElementById('cnfActions');
 
+  // cleanup helper for TG MainButton
   const cleanupMainButton = ()=>{
+    const tg = TG();
     if (!tg) return;
     try {
       tg.MainButton?.hide();
-      tg.offEvent?.('mainButtonClicked', onConfirm);
+      // использовать стандартный offEvent, если доступен
+      if (typeof tg.offEvent === 'function') tg.offEvent('mainButtonClicked', onConfirm);
     } catch(_) {}
   };
 
   document.getElementById('cbBack').onclick = ()=>{ cleanupMainButton(); goBackOrHero(); };
-  $cancel.onclick = ()=>{ cleanupMainButton(); goBackOrHero(); };
+  $cancel.addEventListener('click', ()=>{ cleanupMainButton(); goBackOrHero(); });
 
   async function onConfirm(){
     $confirm.disabled = true; $cancel.disabled = true;
+    const prevText = $confirm.textContent;
     $confirm.textContent = '⏳ Создаём…';
     try {
       await api('/api/bookings/', {
@@ -128,12 +171,14 @@ export function confirmBooking(){
           photo_url: tgUser?.photo_url ?? null
         })
       });
-      cleanupMainButton?.();
 
+      cleanupMainButton();
+
+      // build subtitle for success modal
       const when = state.slotObj?.time ? new Date(state.slotObj.time) : null;
       const sub = when
-        ? `${state.serviceObj?.name || 'Услуга'} • ${when.toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long'})}, ${when.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`
-        : `${state.serviceObj?.name || 'Услуга'}`;
+        ? `${svcName} • ${when.toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long'})}, ${when.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}`
+        : `${svcName}`;
 
       showSuccessModal({
         title: 'Бронь создана',
@@ -142,15 +187,19 @@ export function confirmBooking(){
       });
 
     } catch(e) {
-      const code = e?.status || 0;
-      if (code === 409) toast('Сlot уже занят. Выберите другое время.');
+      const code = e?.status || e?.statusCode || 0;
+      if (code === 409) toast('Слот уже занят. Выберите другое время.');
       else toast('Не удалось создать бронь');
-      if ($confirm) { $confirm.disabled = false; $confirm.textContent = '✓ Подтвердить бронь'; }
-      if ($cancel)  { $cancel.disabled = false; }
+      // восстанавливаем кнопки
+      $confirm.disabled = false; $confirm.textContent = prevText;
+      $cancel.disabled = false;
     }
   }
 
-  if (tg?.MainButton) {
+  // Integrate with Telegram MainButton if available
+  const tg = TG();
+  if (tg?.MainButton){
+    // hide in-page confirm, and use main button instead
     $confirm.style.display = 'none';
     $actions.classList.add('is-mainbutton');
 
@@ -159,11 +208,17 @@ export function confirmBooking(){
         text: 'Подтвердить бронь',
         color: tg.themeParams?.button_color || '#2ea6ff',
         text_color: tg.themeParams?.button_text_color || '#ffffff',
-        is_active: true, is_visible: true
+        is_active: true,
+        is_visible: true
       });
       tg.MainButton.show();
-      tg.onEvent('mainButtonClicked', onConfirm);
-    }catch(_){}
+      if (typeof tg.onEvent === 'function') tg.onEvent('mainButtonClicked', onConfirm);
+    }catch(_){
+      // fallback: show local confirm
+      $confirm.style.display = '';
+      $actions.classList.remove('is-mainbutton');
+      $confirm.addEventListener('click', onConfirm);
+    }
   } else {
     $confirm.addEventListener('click', onConfirm);
   }
