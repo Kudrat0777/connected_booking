@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 TOKEN = os.getenv("TG_BOT_TOKEN", "8103172288:AAHpH5emrPsPMI30cTtMkIh8SteO2xF_AFc")
-WEBAPP_BASE = os.getenv("WEBAPP_BASE_URL", "https://da70e38fe38c.ngrok-free.app").rstrip("/")
+WEBAPP_BASE = os.getenv("WEBAPP_BASE_URL", "https://ad606b6d6ad4.ngrok-free.app").rstrip("/")
 ADMIN_ID = os.getenv("ADMIN_ID")  # optional: set to numeric string of admin user id
 
 logging.basicConfig(
@@ -23,14 +23,29 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def build_markup() -> InlineKeyboardMarkup:
+def build_markup(update: Optional[Update] = None) -> InlineKeyboardMarkup:
+    user = update.effective_user
+    params = ""
+    if user:
+        # безопасно кодируем параметры
+        from urllib.parse import urlencode
+
+        q = urlencode(
+            {
+                "uid": user.id,
+                "uname": user.username or "",
+            }
+        )
+        params = f"?{q}"
+
     return InlineKeyboardMarkup(
         [
-            # Открываем React-фронт, который работает на корне домена.
-            [InlineKeyboardButton("Открыть клиент", web_app=WebAppInfo(url=f"{WEBAPP_BASE}/"))],
-
-            # Когда появится отдельный экран мастера во фронте, можно сделать так:
-            # [InlineKeyboardButton("Панель мастера", web_app=WebAppInfo(url=f"{WEBAPP_BASE}/master"))],
+            [
+                InlineKeyboardButton(
+                    "Открыть клиент",
+                    web_app=WebAppInfo(url=f"{WEBAPP_BASE}/{params}")
+                )
+            ],
         ]
     )
 
@@ -38,7 +53,7 @@ def build_markup() -> InlineKeyboardMarkup:
 # ---- Handlers ----
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "Выбери раздел 👇"
-    markup = build_markup()
+    markup = build_markup(update)
     if update.message:
         await update.message.reply_text(text, reply_markup=markup)
     elif update.callback_query and update.callback_query.message:
