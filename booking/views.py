@@ -113,8 +113,21 @@ class MasterViewSet(viewsets.ModelViewSet):
 
         subdir = os.path.join('avatars', str(tg))
         filename = default_storage.save(os.path.join(subdir, f.name), ContentFile(f.read()))
+
+        base_url = os.getenv("WEBAPP_BASE_URL", "").rstrip("/")
+        if not base_url:
+            # Если переменной нет, берем из запроса, но заменяем 0.0.0.0 на localhost или ngrok
+            host = request.get_host()
+            if "0.0.0.0" in host:
+                host = "127.0.0.1:8000"  # Для локального теста
+            scheme = request.scheme
+            base_url = f"{scheme}://{host}"
+
         media_url = getattr(settings, 'MEDIA_URL', '/media/')
-        m.avatar_url = urljoin(media_url, filename.replace('\\', '/'))
+        # Убираем двойные слеши
+        full_path = f"{base_url}{media_url}{filename.replace('\\', '/')}"
+
+        m.avatar_url = full_path
         m.save(update_fields=['avatar_url'])
         return Response({'avatar_url': m.avatar_url})
 

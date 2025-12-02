@@ -5,13 +5,32 @@ from .models import (
     MasterEducation, MasterSpecialization, PortfolioItem, WorkingHour, Review
 )
 
+
 class MasterSerializer(serializers.ModelSerializer):
     rating = serializers.SerializerMethodField()
     reviews_count = serializers.SerializerMethodField()
+    # Переопределяем поле, чтобы исправлять ссылку
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj):
+        url = obj.avatar_url
+        if not url:
+            return ""
+
+        # Хак для исправления 0.0.0.0
+        if "0.0.0.0" in url:
+            request = self.context.get('request')
+            if request:
+                # Заменяем кривой хост на тот, по которому пришел запрос (ngrok)
+                scheme = request.scheme
+                host = request.get_host()
+                # Если в url есть 0.0.0.0:8000, меняем на реальный хост
+                return url.replace("http://0.0.0.0:8000", f"{scheme}://{host}").replace("http://0.0.0.0",
+                                                                                        f"{scheme}://{host}")
+
+        return url
 
     def get_rating(self, obj):
-        # если queryset уже аннотировал rating_value — используем его,
-        # иначе считаем на лету или берём из property rating_value_prop
         val = getattr(obj, "rating_value", None)
         if val is None:
             val = getattr(obj, "rating_value_prop", None)
@@ -29,8 +48,9 @@ class MasterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Master
-        fields = ("id","name","telegram_id","bio","phone","avatar_url",
-                  "email","experience_years","rating","reviews_count")
+        fields = ("id", "name", "telegram_id", "bio", "phone", "avatar_url",
+                  "email", "experience_years", "rating", "reviews_count")
+
 
 class ServiceSerializer(serializers.ModelSerializer):
     master_name = serializers.CharField(source='master.name', read_only=True)
@@ -51,9 +71,11 @@ class SlotSerializer(serializers.ModelSerializer):
     service_id = serializers.PrimaryKeyRelatedField(
         queryset=Service.objects.all(), source='service', write_only=True
     )
+
     class Meta:
         model = Slot
         fields = '__all__'
+
 
 class BookingSerializer(serializers.ModelSerializer):
     slot = SlotSerializer(read_only=True)
@@ -77,30 +99,36 @@ class BookingSerializer(serializers.ModelSerializer):
             'master_name', 'service_name',
         )
 
+
 class EducationSerializer(serializers.ModelSerializer):
     class Meta:
         model = MasterEducation
         fields = ["title"]
+
 
 class SpecSerializer(serializers.ModelSerializer):
     class Meta:
         model = MasterSpecialization
         fields = ["name"]
 
+
 class PortfolioSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortfolioItem
         fields = ["image_url", "caption", "created_at"]
+
 
 class WorkingHourSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkingHour
         fields = ["weekday", "start", "end", "is_closed"]
 
+
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ["author_name", "rating", "text", "created_at"]
+
 
 class MasterPublicSerializer(serializers.ModelSerializer):
     services = ServiceShortSerializer(many=True, read_only=True, source="service_set")
@@ -111,6 +139,22 @@ class MasterPublicSerializer(serializers.ModelSerializer):
     rating = serializers.SerializerMethodField()
     reviews_count = serializers.SerializerMethodField()
     clients_count = serializers.SerializerMethodField()
+
+    # Тоже добавляем фикс для публичного профиля
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj):
+        url = obj.avatar_url
+        if not url:
+            return ""
+        if "0.0.0.0" in url:
+            request = self.context.get('request')
+            if request:
+                scheme = request.scheme
+                host = request.get_host()
+                return url.replace("http://0.0.0.0:8000", f"{scheme}://{host}").replace("http://0.0.0.0",
+                                                                                        f"{scheme}://{host}")
+        return url
 
     def get_rating(self, obj):
         val = getattr(obj, "rating_value", None)
