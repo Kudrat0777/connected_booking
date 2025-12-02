@@ -10,20 +10,12 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me")
 # Локально ставь DJANGO_DEBUG=True, на Render — False.
 DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
-# ALLOWED_HOSTS:
-# - в проде читаем из DJANGO_ALLOWED_HOSTS (через запятую)
-# - в DEBUG режиме разрешаем все хосты
-_raw_allowed_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
-if _raw_allowed_hosts:
-    ALLOWED_HOSTS = [h.strip() for h in _raw_allowed_hosts.split(",") if h.strip()]
-elif DEBUG:
-    ALLOWED_HOSTS = ["*"]
-else:
-    ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "connected-booking.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
 
-# -----------------------------
-# ПРИЛОЖЕНИЯ
-# -----------------------------
 
 INSTALLED_APPS = [
     # Django
