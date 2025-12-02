@@ -36,12 +36,13 @@ class MasterSpecialization(models.Model):
     name = models.CharField(max_length=80)    # "Аппаратный маникюр"
 
 
-class PortfolioItem(models.Model):
-    master = models.ForeignKey(Master, on_delete=models.CASCADE, related_name="portfolio")
-    image_url = models.URLField()
-    caption = models.CharField(max_length=140, blank=True, default="")
+class PortfolioImage(models.Model):
+    master = models.ForeignKey(Master, related_name='portfolio', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='portfolio/')
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"Photo for {self.master.name}"
 
 class WorkingHour(models.Model):
     master = models.ForeignKey(Master, on_delete=models.CASCADE, related_name="working_hours")

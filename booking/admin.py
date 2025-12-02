@@ -14,7 +14,7 @@ class MasterSpecializationInline(admin.TabularInline):
     fields = ("name",)
 
 class PortfolioItemInline(admin.TabularInline):
-    model = models.PortfolioItem
+    model = models.PortfolioImage
     extra = 0
     fields = ("image_url", "caption", "created_at")
     readonly_fields = ("created_at",)

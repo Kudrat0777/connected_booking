@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.db.models import Avg, Count
 from .models import (
     Master, Service, Slot, Booking,
-    MasterEducation, MasterSpecialization, PortfolioItem, WorkingHour, Review
+    MasterEducation, MasterSpecialization, PortfolioImage, WorkingHour, Review
 )
 
 
@@ -112,11 +112,18 @@ class SpecSerializer(serializers.ModelSerializer):
         fields = ["name"]
 
 
-class PortfolioSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PortfolioItem
-        fields = ["image_url", "caption", "created_at"]
+class PortfolioImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
 
+    class Meta:
+        model = PortfolioImage
+        fields = ['id', 'image_url', 'created_at']
+
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.image:
+            return request.build_absolute_uri(obj.image.url)
+        return None
 
 class WorkingHourSerializer(serializers.ModelSerializer):
     class Meta:

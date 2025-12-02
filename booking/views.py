@@ -19,13 +19,15 @@ from rest_framework.response import Response
 from django.db.models import Avg, Count, Sum
 
 from .models import (
-    Master, Service, PortfolioItem, Review, WorkingHour, Slot, Booking
+    Master, Service, PortfolioImage, Review, WorkingHour, Slot, Booking
 )
 from .serializers import (
     MasterSerializer, MasterPublicSerializer,
-    ServiceShortSerializer, PortfolioSerializer, ReviewSerializer,
+    ServiceShortSerializer, PortfolioImageSerializer, ReviewSerializer,
     WorkingHourSerializer, SlotSerializer, ServiceSerializer, BookingSerializer
 )
+from rest_framework.parsers import MultiPartParser, FormParser
+
 
 CANCEL_LOCK_MINUTES = 30  # запрет отмены позднее чем за 30 минут
 
@@ -563,33 +565,30 @@ class BookingViewSet(viewsets.ModelViewSet):
         return Response({'items': data, 'summary': summary})
 
 
-class PortfolioViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    serializer_class = PortfolioSerializer
+class PortfolioViewSet(viewsets.ModelViewSet):
+    serializer_class = PortfolioImageSerializer
+    parser_classes = (MultiPartParser, FormParser)
 
-    def list(self, request, *args, **kwargs):
-        master_id = request.query_params.get("master")
-        try:
-            limit = max(1, int(request.query_params.get("limit", 8)))
-        except Exception:
-            limit = 8
-        try:
-            offset = max(0, int(request.query_params.get("offset", 0)))
-        except Exception:
-            offset = 0
+    def get_queryset(self):
+        # Фильтруем либо по ID мастера, либо по Telegram ID
+        master_id = self.request.query_params.get('master_id')
+        telegram_id = self.request.query_params.get('telegram_id')
 
-        qs = PortfolioItem.objects.select_related("master")
+        qs = PortfolioImage.objects.all().order_by('-created_at')
+
         if master_id:
-            qs = qs.filter(master_id=master_id)
-        qs = qs.order_by("-created_at")
+            return qs.filter(master_id=master_id)
+        if telegram_id:
+            return qs.filter(master__telegram_id=telegram_id)
 
-        total = qs.count()
-        page = qs[offset:offset+limit]
-        data = PortfolioSerializer(page, many=True).data
-        next_offset = offset + limit if (offset + limit) < total else None
-        return Response({"items": data, "total": total, "next_offset": next_offset})
+        return qs.none()  # Если нет параметров, ничего не отдаем
 
+    def perform_create(self, serializer):
+        # При загрузке нужно найти мастера по telegram_id
+        tg = self.request.data.get('telegram_id')
+        master = Master.objects.get(telegram_id=tg)
+        serializer.save(master=master)
 
-# ... (в начале файла без изменений)
 
 class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = ReviewSerializer
