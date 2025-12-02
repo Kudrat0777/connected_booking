@@ -1,67 +1,92 @@
 import os
 from pathlib import Path
+
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECRET_KEY = 'django-insecure-38jjykme#yne!pxj5re2y&u^9it+xjarg2xp6_#=cidx-$*oug'
-
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me")
 
-# DEBUG = True
+# Локально ставь DJANGO_DEBUG=True, на Render — False.
 DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
-# ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS:
+# - в проде читаем из DJANGO_ALLOWED_HOSTS (через запятую)
+# - в DEBUG режиме разрешаем все хосты
+_raw_allowed_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
+if _raw_allowed_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in _raw_allowed_hosts.split(",") if h.strip()]
+elif DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = []
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
+# -----------------------------
+# ПРИЛОЖЕНИЯ
+# -----------------------------
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    # Django
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
 
     # third-party
-    'corsheaders',
-    'rest_framework',
+    "corsheaders",
+    "rest_framework",
 
-    # apps
-    'booking',
+    # local apps
+    "booking",
 ]
+
+# -----------------------------
+# MIDDLEWARE
+# -----------------------------
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-    'corsheaders.middleware.CorsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",   # сразу после SecurityMiddleware
+    "corsheaders.middleware.CorsMiddleware",
 
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'core.urls'
+ROOT_URLCONF = "core.urls"
+
+# -----------------------------
+# TEMPLATES
+# -----------------------------
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi.application'
+WSGI_APPLICATION = "core.wsgi.application"
+
+# -----------------------------
+# БАЗА ДАННЫХ
+# -----------------------------
+# Локально по умолчанию SQLite,
+# на Render можно задать DATABASE_URL (Postgres и т.д.)
 
 DATABASES = {
     "default": dj_database_url.config(
@@ -71,39 +96,65 @@ DATABASES = {
     )
 }
 
+# -----------------------------
+# АУТЕНТИФИКАЦИЯ
+# -----------------------------
+
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
-LANGUAGE_CODE = 'en-us'
+# -----------------------------
+# ЛОКАЛИЗАЦИЯ
+# -----------------------------
 
-TIME_ZONE = 'Asia/Tashkent'
-
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Asia/Tashkent"
 USE_I18N = True
-
 USE_TZ = True
+
+# -----------------------------
+# СТАТИКА И МЕДИА (WhiteNoise)
+# -----------------------------
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+# WhiteNoise — отдача статики в проде
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8103172288:AAHpH5emrPsPMI30cTtMkIh8SteO2xF_AFc')
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# -----------------------------
+# TELEGRAM
+# -----------------------------
 
-MEDIA_URL  = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Реальный токен задаём ТОЛЬКО через переменную окружения TELEGRAM_BOT_TOKEN
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
-CSRF_TRUSTED_ORIGINS = os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+# -----------------------------
+# ПРОЧЕЕ
+# -----------------------------
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# CSRF trusted origins: берём из DJANGO_CSRF_TRUSTED_ORIGINS (через запятую)
+_raw_csrf = os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _raw_csrf.split(",") if o.strip()]
+
+# CORS: для простоты в DEBUG разрешаем всё
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
