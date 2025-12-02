@@ -16,6 +16,7 @@ from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from django.db.models import Avg, Count, Sum
 
 from .models import (
     Master, Service, PortfolioItem, Review, WorkingHour, Slot, Booking
@@ -178,6 +179,52 @@ class MasterViewSet(viewsets.ModelViewSet):
 
         data = SlotSerializer(qs, many=True).data
         return Response({"items": data})
+
+    # GET /api/masters/analytics/?telegram_id=...
+    @action(detail=False, methods=['get'])
+    def analytics(self, request):
+        tg = request.query_params.get('telegram_id')
+        master = Master.objects.filter(telegram_id=tg).first()
+        if not master:
+            return Response({'detail': 'Master not found'}, status=404)
+
+        now = timezone.now()
+        # Начало сегодняшнего дня
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Начало недели (понедельник)
+        week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        # Начало месяца
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # Базовый запрос: только ПОДТВЕРЖДЕННЫЕ записи (деньги считаем только с них)
+        qs = Booking.objects.filter(slot__service__master=master, status='confirmed')
+
+        def get_sum(queryset):
+            return queryset.aggregate(s=Sum('slot__service__price'))['s'] or 0
+
+        revenue_today = get_sum(qs.filter(slot__time__gte=today_start))
+        revenue_week = get_sum(qs.filter(slot__time__gte=week_start))
+        revenue_month = get_sum(qs.filter(slot__time__gte=month_start))
+
+        total_bookings = qs.count()
+        # Уникальные клиенты
+        unique_clients = qs.exclude(telegram_id__isnull=True).values('telegram_id').distinct().count()
+
+        # Топ 3 популярных услуг
+        top_services = (
+            qs.values('slot__service__name')
+            .annotate(count=Count('id'), revenue=Sum('slot__service__price'))
+            .order_by('-count')[:3]
+        )
+
+        return Response({
+            'revenue_today': revenue_today,
+            'revenue_week': revenue_week,
+            'revenue_month': revenue_month,
+            'total_bookings': total_bookings,
+            'unique_clients': unique_clients,
+            'top_services': top_services
+        })
 
 
 class ServiceViewSet(viewsets.ModelViewSet):
