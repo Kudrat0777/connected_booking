@@ -8,8 +8,6 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('booking.urls')),
-    path('', TemplateView.as_view(template_name="miniapp/index.html")),
-    path('master/', TemplateView.as_view(template_name="miniapp/master.html")),
 ]
 
 if settings.DEBUG:
