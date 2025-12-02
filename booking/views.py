@@ -192,13 +192,27 @@ class ServiceViewSet(viewsets.ModelViewSet):
     def create_by_master(self, request):
         tg = request.data.get('telegram_id')
         name = (request.data.get('name') or '').strip()
+
+        # Обработка цены и длительности (защита от пустых строк)
+        price_raw = request.data.get('price')
+        duration_raw = request.data.get('duration')
+
+        price = int(price_raw) if price_raw else None
+        duration = int(duration_raw) if duration_raw else None
+
         m = Master.objects.filter(telegram_id=tg).first()
-        if not m or not name:
-            return Response({'detail': 'telegram_id и name обязательны'}, status=400)
-        s = Service.objects.create(master=m, name=name,
-                                   price=request.data.get('price') or None,
-                                   duration=request.data.get('duration') or None,
-                                   description=request.data.get('description') or "")
+        if not m:
+            return Response({'detail': 'Мастер не найден. Сначала зарегистрируйтесь.'}, status=404)
+        if not name:
+            return Response({'detail': 'Название услуги обязательно'}, status=400)
+
+        s = Service.objects.create(
+            master=m,
+            name=name,
+            price=price,
+            duration=duration,
+            description=request.data.get('description') or ""
+        )
         return Response(ServiceSerializer(s).data, status=201)
 
 

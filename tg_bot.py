@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from typing import Optional
+from urllib.parse import urlencode
 
 from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -25,25 +26,36 @@ logger = logging.getLogger(__name__)
 
 def build_markup(update: Optional[Update] = None) -> InlineKeyboardMarkup:
     user = update.effective_user
-    params = ""
+    client_params = ""
+    master_params = ""
     if user:
-        # безопасно кодируем параметры
-        from urllib.parse import urlencode
+        base_query = {
+            "uid": user.id,
+            "uname": user.username or "",
+            "first_name": user.first_name or "",
+            "last_name": user.last_name or "",
+        }
 
-        q = urlencode(
-            {
-                "uid": user.id,
-                "uname": user.username or "",
-            }
-        )
-        params = f"?{q}"
+        # Параметры для клиента
+        client_params = f"?{urlencode(base_query)}"
+
+        # Параметры для мастера (добавляем role=master)
+        master_query = base_query.copy()
+        master_query['role'] = 'master'
+        master_params = f"?{urlencode(master_query)}"
 
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "Открыть клиент",
-                    web_app=WebAppInfo(url=f"{WEBAPP_BASE}/{params}")
+                    "📱 Записаться (Клиент)",
+                    web_app=WebAppInfo(url=f"{WEBAPP_BASE}/{client_params}")
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "✂️ Кабинет Мастера",
+                    web_app=WebAppInfo(url=f"{WEBAPP_BASE}/{master_params}")
                 )
             ],
         ]
