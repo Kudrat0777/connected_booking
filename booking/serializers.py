@@ -141,7 +141,6 @@ class MasterPublicSerializer(serializers.ModelSerializer):
     services = ServiceShortSerializer(many=True, read_only=True, source="service_set")
     education = EducationSerializer(many=True, read_only=True)
     specializations = SpecSerializer(many=True, read_only=True)
-    portfolio = PortfolioSerializer(many=True, read_only=True)
     working_hours = WorkingHourSerializer(many=True, read_only=True)
     rating = serializers.SerializerMethodField()
     reviews_count = serializers.SerializerMethodField()
