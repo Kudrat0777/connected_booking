@@ -589,15 +589,24 @@ class PortfolioViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return Response({"items": data, "total": total, "next_offset": next_offset})
 
 
+# ... (в начале файла без изменений)
+
 class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = ReviewSerializer
 
     def get_queryset(self):
         master_id = self.request.query_params.get("master")
+        master_tg = self.request.query_params.get("master_telegram_id")
+
         limit = int(self.request.query_params.get("limit") or 0)
         qs = Review.objects.select_related("master").order_by("-created_at")
+
         if master_id:
             qs = qs.filter(master_id=master_id)
+
+        if master_tg:
+            qs = qs.filter(master__telegram_id=master_tg)
+
         if limit:
             qs = qs[:limit]
         return qs
