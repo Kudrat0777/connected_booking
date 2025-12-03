@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c85739ff-7739-48c9-8283-abdf03e4e8ea" name="Changes" comment="фикс">
-      <change afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
+    <list default="true" id="c85739ff-7739-48c9-8283-abdf03e4e8ea" name="Changes" comment="Fix .gitignore and remove unnecessary files">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/settings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tg_bot.py" beforeDir="false" afterPath="$PROJECT_DIR$/tg_bot.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -63,6 +61,7 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/core" />
     </key>
   </component>
@@ -193,7 +192,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764700165451</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="Fix .gitignore and remove unnecessary files">
+      <option name="closed" value="true" />
+      <created>1764747390390</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1764747390390</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -205,6 +212,7 @@
     <MESSAGE value="страница просмотра отзывов клиентам" />
     <MESSAGE value="пересоздана модель для портфолио" />
     <MESSAGE value="фикс" />
-    <option name="LAST_COMMIT_MESSAGE" value="фикс" />
+    <MESSAGE value="Fix .gitignore and remove unnecessary files" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix .gitignore and remove unnecessary files" />
   </component>
 </project>
