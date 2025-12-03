@@ -95,7 +95,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8103172288:AAHpH5emrPsPMI30cTtMkIh8SteO2xF_AFc')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8266390460:AAETLQKOeQRipJEXwUmJ85sFeLwuWNmDpac')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

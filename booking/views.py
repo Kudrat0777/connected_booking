@@ -19,12 +19,13 @@ from django.db.models import Avg, Count, Sum
 from .telegram_utils import send_telegram_message
 
 from .models import (
-    Master, Service, PortfolioImage, Review, WorkingHour, Slot, Booking
+    Master, Service, PortfolioImage, Review, WorkingHour, Slot, Booking, Client
 )
 from .serializers import (
     MasterSerializer, MasterPublicSerializer,
     ServiceShortSerializer, PortfolioImageSerializer, ReviewSerializer,
-    WorkingHourSerializer, SlotSerializer, ServiceSerializer, BookingSerializer
+    WorkingHourSerializer, SlotSerializer, ServiceSerializer, BookingSerializer,
+    ClientSerializer
 )
 from rest_framework.parsers import MultiPartParser, FormParser
 
@@ -418,6 +419,12 @@ class BookingViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         booking = serializer.save()
 
+        if booking.telegram_id:
+            client = Client.objects.filter(telegram_id=booking.telegram_id).first()
+            if client:
+                booking.client_profile = client
+                booking.save(update_fields=['client_profile'])
+
         # 🔔 УВЕДОМЛЕНИЕ МАСТЕРУ
         master = booking.slot.service.master
         if master.telegram_id:
@@ -645,3 +652,24 @@ class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             text=text
         )
         return Response(ReviewSerializer(rev).data, status=201)
+
+
+class ClientViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
+    queryset = Client.objects.all()
+    serializer_class = ClientSerializer
+    lookup_field = 'telegram_id'
+    permission_classes = [AllowAny]  # Разрешаем доступ без токенов (пока)
+
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        tid = kwargs.get('telegram_id')
+
+        client, created = Client.objects.get_or_create(telegram_id=tid)
+
+        serializer = self.get_serializer(client, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)

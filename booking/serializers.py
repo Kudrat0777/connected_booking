@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.db.models import Avg, Count
 from .models import (
     Master, Service, Slot, Booking,
-    MasterEducation, MasterSpecialization, PortfolioImage, WorkingHour, Review
+    MasterEducation, MasterSpecialization, PortfolioImage, WorkingHour, Review, Client
 )
 
 
@@ -184,3 +184,8 @@ class MasterPublicSerializer(serializers.ModelSerializer):
             "rating", "reviews_count", "clients_count",
             "services", "education", "specializations", "portfolio", "working_hours"
         ]
+
+class ClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Client
+        fields = ['id', 'telegram_id', 'first_name', 'last_name', 'username', 'phone']

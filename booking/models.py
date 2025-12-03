@@ -83,6 +83,18 @@ class Slot(models.Model):
         return f"{self.service} @ {self.time:%d.%m.%Y %H:%M}"
 
 
+class Client(models.Model):
+    telegram_id = models.BigIntegerField(unique=True)
+    first_name = models.CharField(max_length=150, blank=True, default="")
+    last_name = models.CharField(max_length=150, blank=True, default="")
+    username = models.CharField(max_length=150, blank=True, default="")
+    phone = models.CharField(max_length=32, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Client {self.first_name} ({self.telegram_id})"
+
+
 class Booking(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Ожидание'),
@@ -99,6 +111,9 @@ class Booking(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     reminder_sent = models.BooleanField(default=False)  # клиенту
     reminder_master_sent = models.BooleanField(default=False) # мастеру
+    client_profile = models.ForeignKey(Client, on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='bookings')
 
     def __str__(self):
         return f"{self.name} → {self.slot} [{self.status}]"
+
