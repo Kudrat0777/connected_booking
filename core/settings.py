@@ -1,152 +1,116 @@
 import os
 from pathlib import Path
-
 import dj_database_url
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me")
+SECRET_KEY = 'django-insecure-38jjykme#yne!pxj5re2y&u^9it+xjarg2xp6_#=cidx-$*oug'
 
-# Локально ставь DJANGO_DEBUG=True, на Render — False.
-DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
+DEBUG = True
 
-ALLOWED_HOSTS = [
-    "connected-booking.onrender.com",
-    "localhost",
-    "127.0.0.1",
-]
-
+# ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
 INSTALLED_APPS = [
-    # Django
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
 
     # third-party
-    "corsheaders",
-    "rest_framework",
+    'corsheaders',
+    'rest_framework',
 
-    # local apps
-    "booking",
+    # apps
+    'booking',
 ]
-
-# -----------------------------
-# MIDDLEWARE
-# -----------------------------
 
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",   # сразу после SecurityMiddleware
-    "corsheaders.middleware.CorsMiddleware",
-
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = "core.urls"
-
-# -----------------------------
-# TEMPLATES
-# -----------------------------
+ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
-        "APP_DIRS": True,
-        "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = "core.wsgi.application"
-
-# -----------------------------
-# БАЗА ДАННЫХ
-# -----------------------------
-# Локально по умолчанию SQLite,
-# на Render можно задать DATABASE_URL (Postgres и т.д.)
+WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default=os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
-        conn_max_age=600,
-        ssl_require=False,
+    'default': dj_database_url.config(
+        default='sqlite:///db.sqlite3',
+        conn_max_age=600
     )
 }
 
-# -----------------------------
-# АУТЕНТИФИКАЦИЯ
-# -----------------------------
-
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
     },
     {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
     {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
 
-# -----------------------------
-# ЛОКАЛИЗАЦИЯ
-# -----------------------------
+LANGUAGE_CODE = 'en-us'
 
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "Asia/Tashkent"
+TIME_ZONE = 'Asia/Tashkent'
+
 USE_I18N = True
+
 USE_TZ = True
 
-# -----------------------------
-# СТАТИКА И МЕДИА (WhiteNoise)
-# -----------------------------
+STATIC_URL = '/static/'
 
-STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# WhiteNoise — отдача статики в проде
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8103172288:AAHpH5emrPsPMI30cTtMkIh8SteO2xF_AFc')
 
-# -----------------------------
-# TELEGRAM
-# -----------------------------
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Реальный токен задаём ТОЛЬКО через переменную окружения TELEGRAM_BOT_TOKEN
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+MEDIA_URL  = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# -----------------------------
-# ПРОЧЕЕ
-# -----------------------------
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+CORS_ALLOW_CREDENTIALS = True
 
-# CSRF trusted origins: берём из DJANGO_CSRF_TRUSTED_ORIGINS (через запятую)
-_raw_csrf = os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "")
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in _raw_csrf.split(",") if o.strip()]
-
-# CORS: для простоты в DEBUG разрешаем всё
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]

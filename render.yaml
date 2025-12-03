@@ -1,0 +1,42 @@
+databases:
+  - name: connected_booking_db
+    databaseName: connected_booking
+    user: connected_booking_user
+    plan: free
+    region: frankfurt
+
+services:
+  - type: web
+    name: connected-booking-web
+    runtime: docker
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: connected_booking_db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: WEBAPP_BASE_URL
+        value: https://connected-booking-web.onrender.com
+    buildCommand: docker build -t connected-booking .
+    startCommand: gunicorn core.wsgi:application --bind 0.0.0.0:$PORT
+
+  - type: worker
+    name: connected-booking-bot
+    runtime: docker
+    region: frankfurt
+    plan: free
+    dockerCommand: python tg_bot.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: connected_booking_db
+          property: connectionString
+      - key: TG_BOT_TOKEN
+        sync: false
+      - key: WEBAPP_BASE_URL
+        value: https://connected-booking-web.onrender.com
