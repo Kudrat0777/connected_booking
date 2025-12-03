@@ -408,6 +408,35 @@ class BookingViewSet(viewsets.ModelViewSet):
                     .order_by('-created_at'))
         return super().get_queryset()
 
+    @action(detail=False, methods=['post'])
+    def manual_create(self, request):
+        """Manual booking by master"""
+        slot_id = request.data.get('slot_id')
+        client_name = request.data.get('client_name')
+
+        if not slot_id or not client_name:
+            return Response({"error": "Slot ID and Name are required"}, status=400)
+
+        try:
+            slot = Slot.objects.get(id=slot_id)
+        except Slot.DoesNotExist:
+            return Response({"error": "Slot not found"}, status=404)
+
+        if slot.is_booked:
+            return Response({"error": "Slot is already booked"}, status=400)
+
+        booking = Booking.objects.create(
+            slot=slot,
+            client_name=client_name,
+            status='confirmed',
+            telegram_id=None
+        )
+
+        slot.is_booked = True
+        slot.save()
+
+        return Response(BookingSerializer(booking).data, status=201)
+
     def create(self, request, *args, **kwargs):
         slot_id = request.data.get('slot') or request.data.get('slot_id')
         try:

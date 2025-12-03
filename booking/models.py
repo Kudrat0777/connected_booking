@@ -92,6 +92,7 @@ class Booking(models.Model):
     name = models.CharField(max_length=100)
     slot = models.ForeignKey(Slot, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    client_name = models.CharField(max_length=255, null=True, blank=True)
     telegram_id = models.BigIntegerField(null=True, blank=True)
     username = models.CharField(max_length=150, null=True, blank=True)
     photo_url = models.URLField(null=True, blank=True)
