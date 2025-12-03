@@ -4,8 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c85739ff-7739-48c9-8283-abdf03e4e8ea" name="Changes" comment="Fix .gitignore and remove unnecessary files">
+    <list default="true" id="c85739ff-7739-48c9-8283-abdf03e4e8ea" name="Changes" comment="Fix tg_bot">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/booking/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/booking/admin.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/settings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tg_bot.py" beforeDir="false" afterPath="$PROJECT_DIR$/tg_bot.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -200,7 +202,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764747390390</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="Fix tg_bot">
+      <option name="closed" value="true" />
+      <created>1764750404604</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1764750404604</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -213,6 +223,7 @@
     <MESSAGE value="пересоздана модель для портфолио" />
     <MESSAGE value="фикс" />
     <MESSAGE value="Fix .gitignore and remove unnecessary files" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fix .gitignore and remove unnecessary files" />
+    <MESSAGE value="Fix tg_bot" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix tg_bot" />
   </component>
 </project>

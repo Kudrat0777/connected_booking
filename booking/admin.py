@@ -2,7 +2,6 @@ from django.contrib import admin
 from django.utils.safestring import mark_safe
 from . import models
 
-
 class MasterEducationInline(admin.TabularInline):
     model = models.MasterEducation
     extra = 0
@@ -15,8 +14,8 @@ class MasterSpecializationInline(admin.TabularInline):
 
 class PortfolioItemInline(admin.TabularInline):
     model = models.PortfolioImage
-    extra = 0
-    fields = ("image_url", "caption", "created_at")
+    extra = 1
+    fields = ("image", "created_at")
     readonly_fields = ("created_at",)
     ordering = ("-created_at",)
 
@@ -32,7 +31,6 @@ class ReviewInline(admin.TabularInline):
     fields = ("author_name", "rating", "text", "created_at")
     readonly_fields = ("created_at",)
     ordering = ("-created_at",)
-
 
 @admin.register(models.Master)
 class MasterAdmin(admin.ModelAdmin):
@@ -62,12 +60,12 @@ class MasterAdmin(admin.ModelAdmin):
     ]
 
     def avatar_preview(self, obj):
+        # Проверка на None
         url = getattr(obj, "avatar_url", "") or ""
         if url:
             return mark_safe(f'<img src="{url}" style="height:80px;border-radius:8px" />')
         return "—"
     avatar_preview.short_description = "Превью"
-
 
 class SlotInline(admin.TabularInline):
     model = models.Slot
@@ -101,3 +99,8 @@ class BookingAdmin(admin.ModelAdmin):
     def client_name(self, obj):
         return getattr(obj, "name", None) or getattr(obj, "client_name", "—")
     client_name.short_description = "Клиент"
+
+@admin.register(models.PortfolioImage)
+class PortfolioImageAdmin(admin.ModelAdmin):
+    list_display = ('master', 'image', 'created_at')
+    list_filter = ('master',)

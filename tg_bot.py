@@ -15,7 +15,7 @@ from telegram.ext import (
 )
 
 TOKEN = os.getenv("TG_BOT_TOKEN", "8103172288:AAHpH5emrPsPMI30cTtMkIh8SteO2xF_AFc")
-WEBAPP_BASE = os.getenv("WEBAPP_BASE_URL", "https://connected-booking.onrender.com").rstrip("/")
+WEBAPP_BASE = os.getenv("WEBAPP_BASE_URL", "https://fhfhffccn14r.share.zrok.io").rstrip("/")
 ADMIN_ID = os.getenv("ADMIN_ID")  # optional: set to numeric string of admin user id
 
 logging.basicConfig(
