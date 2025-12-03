@@ -654,22 +654,42 @@ class ReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return Response(ReviewSerializer(rev).data, status=201)
 
 
-class ClientViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
+class ClientViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin,
+                    mixins.DestroyModelMixin):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
     lookup_field = 'telegram_id'
-    permission_classes = [AllowAny]  # Разрешаем доступ без токенов (пока)
+    permission_classes = [AllowAny]
 
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        tid = kwargs.get('telegram_id')
-
+        tid = kwargs.get('telegram_id') or kwargs.get('pk')
         client, created = Client.objects.get_or_create(telegram_id=tid)
-
         serializer = self.get_serializer(client, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-
         return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        tid = kwargs.get('telegram_id') or kwargs.get('pk')
+
+        if not tid:
+            return Response({'detail': 'ID not provided'}, status=400)
+
+        deleted_count = 0
+
+        del_master, _ = Master.objects.filter(telegram_id=tid).delete()
+        if del_master > 0:
+            deleted_count += 1
+
+        del_client, _ = Client.objects.filter(telegram_id=tid).delete()
+        if del_client > 0:
+            deleted_count += 1
+
+        if deleted_count > 0:
+            return Response({'status': 'deleted'}, status=status.HTTP_204_NO_CONTENT)
+        else:
+            print(f"⚠️ Пользователь {tid} не найден в базе.")
+            return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
