@@ -9,7 +9,6 @@ from .models import (
 class MasterSerializer(serializers.ModelSerializer):
     rating = serializers.SerializerMethodField()
     reviews_count = serializers.SerializerMethodField()
-    # Переопределяем поле, чтобы исправлять ссылку
     avatar_url = serializers.SerializerMethodField()
 
     def get_avatar_url(self, obj):
@@ -17,14 +16,11 @@ class MasterSerializer(serializers.ModelSerializer):
         if not url:
             return ""
 
-        # Хак для исправления 0.0.0.0
         if "0.0.0.0" in url:
             request = self.context.get('request')
             if request:
-                # Заменяем кривой хост на тот, по которому пришел запрос (ngrok)
                 scheme = request.scheme
                 host = request.get_host()
-                # Если в url есть 0.0.0.0:8000, меняем на реальный хост
                 return url.replace("http://0.0.0.0:8000", f"{scheme}://{host}").replace("http://0.0.0.0",
                                                                                         f"{scheme}://{host}")
 
@@ -146,7 +142,6 @@ class MasterPublicSerializer(serializers.ModelSerializer):
     reviews_count = serializers.SerializerMethodField()
     clients_count = serializers.SerializerMethodField()
 
-    # Тоже добавляем фикс для публичного профиля
     avatar_url = serializers.SerializerMethodField()
 
     def get_avatar_url(self, obj):

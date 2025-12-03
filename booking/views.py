@@ -10,13 +10,13 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from urllib.parse import urljoin
 
 from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.db.models import Avg, Count, Sum
+from .telegram_utils import send_telegram_message
 
 from .models import (
     Master, Service, PortfolioImage, Review, WorkingHour, Slot, Booking
@@ -30,27 +30,6 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 
 CANCEL_LOCK_MINUTES = 30  # запрет отмены позднее чем за 30 минут
-
-# --- отправка телеграм-сообщений ---
-def send_telegram_message(chat_id: int, text: str, parse_mode="HTML") -> bool:
-    token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
-    if not token or not chat_id:
-        logging.error("TG: no token or chat_id")
-        return False
-    try:
-        r = requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat_id, "text": text, "parse_mode": parse_mode, "disable_web_page_preview": True},
-            timeout=7,
-        )
-        if r.status_code != 200:
-            logging.error("TG send fail %s: %s", r.status_code, r.text)
-            return False
-        return True
-    except Exception as e:
-        logging.exception("TG send exception: %s", e)
-        return False
-
 
 class MasterViewSet(viewsets.ModelViewSet):
     queryset = Master.objects.all()
@@ -410,7 +389,6 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def manual_create(self, request):
-        """Manual booking by master"""
         slot_id = request.data.get('slot_id')
         client_name = request.data.get('client_name')
 
@@ -437,52 +415,20 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         return Response(BookingSerializer(booking).data, status=201)
 
-    def create(self, request, *args, **kwargs):
-        slot_id = request.data.get('slot') or request.data.get('slot_id')
-        try:
-            slot_obj = (Slot.objects
-                        .select_for_update()
-                        .select_related('service__master')
-                        .get(pk=slot_id))
-        except Slot.DoesNotExist:
-            return Response({'detail': 'Слот не найден'}, status=status.HTTP_400_BAD_REQUEST)
+    def perform_create(self, serializer):
+        booking = serializer.save()
 
-        if slot_obj.time < timezone.now():
-            return Response({'detail': 'Нельзя бронировать прошедшее время'}, status=status.HTTP_400_BAD_REQUEST)
-        if slot_obj.is_booked:
-            return Response({'detail': 'Слот уже занят'}, status=status.HTTP_409_CONFLICT)
-
-        response = super().create(request, *args, **kwargs)
-
-        if response.status_code == status.HTTP_201_CREATED:
-            # помечаем слот занятым
-            slot_obj.is_booked = True
-            slot_obj.save(update_fields=['is_booked'])
-
-            data = response.data
-            client_tid = data.get('telegram_id')
-            master = slot_obj.service.master
-            service_name = slot_obj.service.name
-            time_str = slot_obj.time.strftime("%d.%m.%Y %H:%M")
-            client_name = request.data.get('name', '')
-
-            def _notify_after_commit():
-                # клиенту
-                if client_tid:
-                    send_telegram_message(
-                        client_tid,
-                        f"✅ Ваша запись создана\nМастер: {master.name}\nУслуга: {service_name}\nВремя: {time_str}"
-                    )
-                # мастеру
-                if master.telegram_id:
-                    send_telegram_message(
-                        master.telegram_id,
-                        f"🆕 Новая бронь\nУслуга: {service_name}\nВремя: {time_str}\nКлиент: {client_name}"
-                    )
-
-            transaction.on_commit(_notify_after_commit)
-
-        return response
+        # 🔔 УВЕДОМЛЕНИЕ МАСТЕРУ
+        master = booking.slot.service.master
+        if master.telegram_id:
+            text = (
+                f"🆕 <b>Новая запись!</b>\n\n"
+                f"👤 Клиент: {booking.name}\n"
+                f"✂️ Услуга: {booking.slot.service.name}\n"
+                f"📅 Время: {booking.slot.time.strftime('%d.%m %H:%M')}\n\n"
+                f"Зайдите в приложение, чтобы подтвердить."
+            )
+            send_telegram_message(master.telegram_id, text)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -521,34 +467,40 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def confirm(self, request, pk=None):
         booking = self.get_object()
-        booking.status = 'confirmed'
-        booking.save(update_fields=['status'])
+        if booking.status != 'pending':
+            return Response({'error': 'Booking is not pending'}, status=400)
 
-        def _after():
-            if booking.telegram_id:
-                send_telegram_message(
-                    booking.telegram_id,
-                    "Ваша бронь подтверждена мастером!\n"
-                    f"Мастер: {booking.slot.service.master.name}\n"
-                    f"Услуга: {booking.slot.service.name}\n"
-                    f"Время: {booking.slot.time.strftime('%d.%m.%Y %H:%M')}"
-                )
-        transaction.on_commit(_after)
+        booking.status = 'confirmed'
+        booking.save()
+
+        # 🔔 УВЕДОМЛЕНИЕ КЛИЕНТУ
+        if booking.telegram_id:
+            text = (
+                f"✅ <b>Запись подтверждена!</b>\n\n"
+                f"Мастер {booking.slot.service.master.name} ждет вас.\n"
+                f"📅 {booking.slot.time.strftime('%d.%m в %H:%M')}"
+            )
+            send_telegram_message(booking.telegram_id, text)
+
         return Response({'status': 'confirmed'})
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         booking = self.get_object()
         booking.status = 'rejected'
-        booking.save(update_fields=['status'])
+        booking.save()
+        booking.slot.is_booked = False
+        booking.slot.save()
 
-        def _after():
-            if booking.telegram_id:
-                send_telegram_message(
-                    booking.telegram_id,
-                    "Ваша бронь отклонена мастером. Попробуйте выбрать другое время или услугу."
-                )
-        transaction.on_commit(_after)
+        # 🔔 УВЕДОМЛЕНИЕ КЛИЕНТУ
+        if booking.telegram_id:
+            text = (
+                f"❌ <b>Запись отклонена</b>\n\n"
+                f"Мастер {booking.slot.service.master.name} не сможет принять вас в это время.\n"
+                f"Попробуйте выбрать другой слот."
+            )
+            send_telegram_message(booking.telegram_id, text)
+
         return Response({'status': 'rejected'})
 
     # GET /api/bookings/for_master/?telegram_id=...&period=today|tomorrow|week&status=...

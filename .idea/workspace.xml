@@ -4,11 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c85739ff-7739-48c9-8283-abdf03e4e8ea" name="Changes" comment="Fix tg_bot">
+    <list default="true" id="c85739ff-7739-48c9-8283-abdf03e4e8ea" name="Changes" comment="added in Booking clint name">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/booking/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/booking/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/booking/serializers.py" beforeDir="false" afterPath="$PROJECT_DIR$/booking/serializers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/booking/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/booking/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -18,8 +17,8 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="Python Script" />
         <option value="Dockerfile" />
+        <option value="Python Script" />
       </list>
     </option>
   </component>
@@ -218,7 +217,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764757902120</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="added in Booking clint name">
+      <option name="closed" value="true" />
+      <created>1764761958650</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1764761958650</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -232,6 +239,7 @@
     <MESSAGE value="фикс" />
     <MESSAGE value="Fix .gitignore and remove unnecessary files" />
     <MESSAGE value="Fix tg_bot" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fix tg_bot" />
+    <MESSAGE value="added in Booking clint name" />
+    <option name="LAST_COMMIT_MESSAGE" value="added in Booking clint name" />
   </component>
 </project>
