@@ -103,13 +103,12 @@ MEDIA_URL  = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://connected-booking.onrender.com", # Если бэкенд на рендере
+    # ... ваши zrok ссылки ...
+    "https://644e34bb6d.tapps.global", # <--- ОБЯЗАТЕЛЬНО ДОБАВИТЬ ЭТО
 ]
 
-CORS_ALLOW_CREDENTIALS = True
-
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-]
+# Если лень искать, временно разрешите ВСЕМ:
+CORS_ALLOW_ALL_ORIGINS = True

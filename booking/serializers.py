@@ -80,6 +80,7 @@ class BookingSerializer(serializers.ModelSerializer):
     )
     master_name = serializers.SerializerMethodField()
     service_name = serializers.CharField(source='slot.service.name', read_only=True)
+    client_phone = serializers.SerializerMethodField()
 
     def get_master_name(self, obj):
         try:
@@ -87,12 +88,19 @@ class BookingSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def get_client_phone(self, obj):
+        if obj.telegram_id:
+            client = Client.objects.filter(telegram_id=obj.telegram_id).first()
+            if client and client.phone:
+                return client.phone
+        return None
+
     class Meta:
         model = Booking
         fields = (
             'id', 'name', 'client_name', 'slot', 'slot_id', 'created_at',
             'telegram_id', 'username', 'photo_url', 'status',
-            'master_name', 'service_name',
+            'master_name', 'service_name', 'client_phone',
         )
 
 
