@@ -4,9 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c85739ff-7739-48c9-8283-abdf03e4e8ea" name="Changes" comment="логика удаления аккаунта пользователя">
+    <list default="true" id="c85739ff-7739-48c9-8283-abdf03e4e8ea" name="Changes" comment="мелкие фиксы">
+      <change beforePath="$PROJECT_DIR$/.gitignore " beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/booking/serializers.py" beforeDir="false" afterPath="$PROJECT_DIR$/booking/serializers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/booking/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/booking/admin.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/booking/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/booking/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/settings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tg_bot.py" beforeDir="false" afterPath="$PROJECT_DIR$/tg_bot.py" afterDir="false" />
@@ -251,7 +253,15 @@
       <option name="project" value="LOCAL" />
       <updated>1764788230610</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="мелкие фиксы">
+      <option name="closed" value="true" />
+      <created>1764866982590</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1764866982590</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -269,6 +279,7 @@
     <MESSAGE value="изменена логика уведомлений клиенту" />
     <MESSAGE value="модель клиента добавлена, возможность редактировать имя" />
     <MESSAGE value="логика удаления аккаунта пользователя" />
-    <option name="LAST_COMMIT_MESSAGE" value="логика удаления аккаунта пользователя" />
+    <MESSAGE value="мелкие фиксы" />
+    <option name="LAST_COMMIT_MESSAGE" value="мелкие фиксы" />
   </component>
 </project>

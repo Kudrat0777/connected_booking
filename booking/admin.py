@@ -104,3 +104,10 @@ class BookingAdmin(admin.ModelAdmin):
 class PortfolioImageAdmin(admin.ModelAdmin):
     list_display = ('master', 'image', 'created_at')
     list_filter = ('master',)
+
+@admin.register(models.Client)
+class ClientAdmin(admin.ModelAdmin):
+    list_display = ("telegram_id", "first_name", "last_name", "username", "phone", "created_at")
+    search_fields = ("telegram_id", "first_name", "last_name", "username", "phone")
+    readonly_fields = ("created_at",)
+    ordering = ("-created_at",)

@@ -661,8 +661,40 @@ class ClientViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.U
     lookup_field = 'telegram_id'
     permission_classes = [AllowAny]
 
+    @action(detail=False, methods=['post'])
+    def register(self, request):
+        tg = request.data.get('telegram_id')
+        if not tg:
+            return Response({'detail': 'telegram_id required'}, status=400)
+
+        defaults = {
+            'first_name': request.data.get('first_name', ''),
+            'last_name': request.data.get('last_name', ''),
+            'username': request.data.get('username', ''),
+            'phone': request.data.get('phone', ''),
+        }
+
+        client, created = Client.objects.update_or_create(
+            telegram_id=tg,
+            defaults=defaults
+        )
+
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(self.get_serializer(client).data, status=status_code)
+
+
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        tg = request.query_params.get('telegram_id')
+        if not tg:
+            return Response({'detail': 'telegram_id required'}, status=400)
+        c = Client.objects.filter(telegram_id=tg).first()
+        if not c:
+            return Response({'detail': 'not found'}, status=404)
+        return Response(self.get_serializer(c).data)
 
     def update(self, request, *args, **kwargs):
         tid = kwargs.get('telegram_id') or kwargs.get('pk')
